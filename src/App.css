@@ -1,0 +1,186 @@
+:root{
+  --bleu:#002664;
+  --jaune:#FECB00;
+  --rouge:#C60C30;
+  --noir:#0d1117;
+  --gris:#6b7280;
+  --gris-clair:#f3f4f6;
+  --blanc:#ffffff;
+  --vert:#16a34a;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body,#root{height:100%;width:100%;}
+body{
+  font-family:'Segoe UI',system-ui,sans-serif;
+  background:var(--noir);
+  overflow:hidden;
+}
+#app{
+  position:relative;
+  height:100vh;
+  width:100vw;
+  max-width:480px;
+  margin:0 auto;
+  background:var(--blanc);
+  overflow:hidden;
+  box-shadow:0 0 40px rgba(0,0,0,.5);
+}
+
+/* ====== ÉCRAN D'ACCUEIL ====== */
+.accueil{
+  height:100%;
+  background:linear-gradient(160deg,var(--bleu) 0%,#001533 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:30px;color:var(--blanc);
+}
+.accueil-logo{
+  width:80px;height:80px;border-radius:22px;
+  background:linear-gradient(135deg,var(--jaune) 0 33%,var(--rouge) 33% 66%,var(--bleu) 66% 100%);
+  border:3px solid var(--jaune);margin-bottom:20px;
+  box-shadow:0 8px 30px rgba(254,203,0,.3);
+}
+.accueil-titre{font-size:34px;font-weight:800;letter-spacing:.5px;}
+.accueil-titre span{color:var(--jaune);}
+.accueil-slogan{font-size:14px;opacity:.8;margin-top:6px;margin-bottom:40px;}
+.accueil-choix{display:flex;flex-direction:column;gap:16px;width:100%;max-width:340px;}
+.choix-card{
+  background:rgba(255,255,255,.1);
+  border:2px solid rgba(255,255,255,.15);
+  border-radius:18px;padding:24px;cursor:pointer;
+  text-align:center;transition:all .2s;
+  backdrop-filter:blur(6px);
+}
+.choix-card:active{transform:scale(.97);}
+.choix-card.passager:hover{border-color:var(--jaune);background:rgba(254,203,0,.15);}
+.choix-card.chauffeur:hover{border-color:var(--vert);background:rgba(22,163,74,.15);}
+.choix-ic{font-size:42px;margin-bottom:10px;}
+.choix-titre{font-size:18px;font-weight:700;}
+.choix-desc{font-size:13px;opacity:.75;margin-top:4px;}
+.accueil-pied{margin-top:40px;font-size:12px;opacity:.6;letter-spacing:.5px;}
+
+/* ====== EN-TÊTE ====== */
+#header{
+  position:absolute;top:0;left:0;right:0;z-index:1000;
+  background:var(--bleu);color:var(--blanc);
+  padding:14px 18px;display:flex;align-items:center;gap:10px;
+  box-shadow:0 2px 12px rgba(0,0,0,.25);
+}
+.back-btn{
+  background:rgba(255,255,255,.15);border:none;color:#fff;
+  width:34px;height:34px;border-radius:9px;font-size:20px;cursor:pointer;
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;
+}
+#logo-badge{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,var(--jaune) 0 33%,var(--rouge) 33% 66%,var(--bleu) 66% 100%);
+  border:2px solid var(--jaune);flex-shrink:0;
+}
+#header h1{font-size:18px;font-weight:800;letter-spacing:.3px;}
+#header h1 span{color:var(--jaune);}
+#header small{display:block;font-size:10px;font-weight:400;opacity:.8;letter-spacing:.5px;}
+
+/* ====== CARTE ====== */
+#map{position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;}
+
+/* ====== PANNEAU BAS (PASSAGER) ====== */
+#panel{
+  position:absolute;left:0;right:0;bottom:0;z-index:1000;
+  background:var(--blanc);border-radius:22px 22px 0 0;
+  box-shadow:0 -6px 24px rgba(0,0,0,.18);padding:18px 18px 26px;
+}
+#panel-grip{width:42px;height:5px;background:#d1d5db;border-radius:3px;margin:0 auto 16px;}
+.field{
+  display:flex;align-items:center;gap:12px;background:var(--gris-clair);
+  border-radius:13px;padding:13px 14px;margin-bottom:10px;cursor:pointer;
+  border:2px solid transparent;transition:border-color .2s;
+}
+.field.active{border-color:var(--jaune);background:#fffbe9;}
+.dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+.dot.depart{background:var(--bleu);}
+.dot.dest{background:var(--rouge);border-radius:2px;}
+.field .label{font-size:11px;color:var(--gris);font-weight:600;text-transform:uppercase;letter-spacing:.4px;}
+.field .value{font-size:14px;color:var(--noir);font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;}
+.field .value.empty{color:#9ca3af;font-weight:400;}
+
+#estimate{background:linear-gradient(135deg,var(--bleu),#003a96);border-radius:15px;padding:16px;margin:14px 0 12px;color:var(--blanc);}
+#estimate.show{animation:slideUp .3s;}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+#estimate .row{display:flex;justify-content:space-between;align-items:center;}
+#est-price{font-size:30px;font-weight:800;color:var(--jaune);}
+#est-price small{font-size:14px;color:var(--blanc);font-weight:600;}
+#est-meta{font-size:12px;opacity:.85;text-align:right;line-height:1.5;}
+#classes{display:flex;gap:8px;margin-top:14px;}
+.class-card{flex:1;background:rgba(255,255,255,.12);border:2px solid transparent;border-radius:11px;padding:9px 6px;text-align:center;cursor:pointer;transition:all .15s;}
+.class-card.sel{background:var(--jaune);border-color:var(--jaune);}
+.class-card .ic{font-size:20px;}
+.class-card .nm{font-size:11px;font-weight:700;margin-top:2px;}
+.class-card .pr{font-size:10px;opacity:.85;margin-top:1px;}
+.class-card.sel .nm,.class-card.sel .pr{color:var(--bleu);}
+#pay{display:flex;gap:8px;margin:12px 0;}
+.pay-opt{flex:1;border:2px solid var(--gris-clair);border-radius:11px;padding:10px 6px;text-align:center;cursor:pointer;font-size:12px;font-weight:700;color:var(--gris);transition:all .15s;}
+.pay-opt.sel{border-color:var(--bleu);background:#eef3ff;color:var(--bleu);}
+.pay-opt .ic{display:block;font-size:18px;margin-bottom:3px;}
+#order-btn{width:100%;border:none;border-radius:14px;background:var(--rouge);color:var(--blanc);font-size:16px;font-weight:800;padding:16px;cursor:pointer;letter-spacing:.3px;transition:transform .1s,opacity .2s;}
+#order-btn:active{transform:scale(.98);}
+#order-btn:disabled{background:#d1d5db;cursor:not-allowed;}
+
+#hint{position:absolute;top:78px;left:50%;transform:translateX(-50%);z-index:600;background:var(--noir);color:var(--blanc);padding:9px 16px;border-radius:30px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.3);white-space:nowrap;animation:slideUp .3s;}
+
+/* ====== CONFIRMATION ====== */
+#confirm{position:absolute;inset:0;z-index:2000;background:rgba(13,17,23,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;}
+#confirm.show{animation:slideUp .25s;}
+#confirm-box{background:var(--blanc);border-radius:20px;padding:26px 22px;width:100%;text-align:center;}
+#confirm-box .check{width:64px;height:64px;border-radius:50%;background:var(--bleu);color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:32px;}
+#confirm-box h2{color:var(--noir);font-size:20px;margin-bottom:6px;}
+#confirm-box p{color:var(--gris);font-size:14px;line-height:1.5;margin-bottom:6px;}
+.car-info{background:var(--gris-clair);border-radius:13px;padding:14px;margin:16px 0;display:flex;align-items:center;gap:13px;text-align:left;}
+.car-info .plate{background:var(--jaune);color:var(--noir);font-weight:800;padding:6px 10px;border-radius:7px;font-size:15px;letter-spacing:1px;}
+.car-info .driver-nm{font-weight:700;color:var(--noir);font-size:15px;}
+.car-info .driver-meta{font-size:12px;color:var(--gris);}
+#close-confirm{width:100%;border:none;border-radius:12px;background:var(--bleu);color:#fff;font-weight:700;padding:13px;cursor:pointer;font-size:15px;margin-top:6px;}
+.eta-badge{color:var(--rouge);font-weight:800;}
+
+/* ====== MODE CHAUFFEUR ====== */
+.chauffeur-body{
+  position:absolute;top:62px;left:0;right:0;bottom:0;
+  background:var(--gris-clair);overflow-y:auto;padding:16px;
+}
+.statut-bar{
+  background:var(--blanc);border-radius:14px;padding:14px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);
+}
+.statut-nom{font-weight:700;font-size:15px;color:var(--noir);}
+.statut-vehicule{font-size:12px;color:var(--gris);margin-top:2px;}
+.statut-toggle{
+  display:flex;align-items:center;gap:7px;background:#e5e7eb;
+  padding:7px 12px;border-radius:30px;cursor:pointer;font-size:12px;font-weight:700;color:var(--gris);
+}
+.statut-toggle.on{background:#dcfce7;color:var(--vert);}
+.toggle-dot{width:10px;height:10px;border-radius:50%;background:var(--gris);}
+.statut-toggle.on .toggle-dot{background:var(--vert);box-shadow:0 0 0 3px rgba(22,163,74,.2);}
+
+.liste-titre{font-size:14px;font-weight:700;color:var(--noir);margin-bottom:12px;padding-left:4px;}
+.aucune-course{text-align:center;color:var(--gris);font-size:14px;padding:40px 20px;}
+
+.course-card{
+  background:var(--blanc);border-radius:14px;padding:16px;margin-bottom:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid var(--jaune);
+}
+.course-card-haut{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.course-card-prix{font-size:22px;font-weight:800;color:var(--bleu);}
+.course-card-classe{background:var(--jaune);color:var(--bleu);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;}
+.course-card-detail{font-size:13px;color:var(--gris);margin-bottom:6px;}
+.course-card-coords{font-size:11px;color:#9ca3af;margin-bottom:12px;line-height:1.6;}
+.btn-accepter{width:100%;border:none;border-radius:11px;background:var(--vert);color:#fff;font-weight:700;padding:13px;cursor:pointer;font-size:15px;}
+.btn-accepter:active{transform:scale(.98);}
+
+.course-active{
+  background:var(--blanc);border-radius:16px;padding:22px;text-align:center;
+  box-shadow:0 4px 16px rgba(0,0,0,.1);border-top:4px solid var(--vert);
+}
+.course-active-titre{font-size:15px;font-weight:700;color:var(--vert);margin-bottom:10px;}
+.course-active-prix{font-size:32px;font-weight:800;color:var(--bleu);}
+.course-active-detail{font-size:13px;color:var(--gris);margin:8px 0 14px;}
+.course-active-coords{font-size:12px;color:#6b7280;text-align:left;background:var(--gris-clair);padding:12px;border-radius:10px;line-height:1.8;margin-bottom:16px;}
+.btn-terminer{width:100%;border:none;border-radius:11px;background:var(--rouge);color:#fff;font-weight:700;padding:14px;cursor:pointer;font-size:15px;}
