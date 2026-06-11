@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { supabase } from "./supabase";
+import "./App.css";
 
 const TARIF = { base: 500, parKm: 250, parMin: 30, minimum: 700 };
 const VITESSE_MOY = 22;
@@ -17,6 +18,13 @@ const PAIEMENTS = [
   { id: "airtel", nom: "Airtel Money", ic: "📱" },
   { id: "moov", nom: "Moov Money", ic: "📲" },
   { id: "cash", nom: "Espèces", ic: "💵" },
+];
+const MOTIFS = [
+  "Le chauffeur met trop de temps",
+  "J'ai changé d'avis",
+  "Erreur d'adresse",
+  "J'ai trouvé un autre moyen",
+  "Autre",
 ];
 
 function distanceKm(a, b) {
@@ -42,12 +50,10 @@ function iconeVoiture() {
   });
 }
 
-// Capture les clics sur la carte
 function GestionClic({ onClic }) {
   useMapEvents({ click: (e) => onClic(e.latlng.lat, e.latlng.lng) });
   return null;
 }
-// Ajuste la vue
 function AjusterVue({ points }) {
   const map = useMap();
   useEffect(() => {
@@ -69,9 +75,10 @@ export default function Passager() {
   const [courseId, setCourseId] = useState(null);
   const [erreur, setErreur] = useState(null);
   const [posChauffeur, setPosChauffeur] = useState(null);
+  const [showMotifs, setShowMotifs] = useState(false);
 
   function poserPoint(lat, lng) {
-    if (confirm) return; // on ne change plus une fois commandé
+    if (confirm) return;
     if (champActif === "depart") {
       setDepart([lat, lng]);
       if (!dest) setChampActif("dest");
@@ -108,30 +115,69 @@ export default function Passager() {
     setConfirm({ prix: prixActuel, payNom: PAIEMENTS.find((p) => p.id === paiement).nom });
   }
 
-  // Écouter le statut + la position du chauffeur en temps réel
+  // Appliquer les changements d'une course (utilisé par temps réel ET par vérification)
+  function appliquerChangement(c) {
+    if (!c) return;
+    if (c.chauffeur_nom) {
+      setConfirm((prev) => prev && ({
+        ...prev,
+        chauffeur: { nom: c.chauffeur_nom, plate: c.chauffeur_plaque, car: c.chauffeur_vehicule },
+      }));
+    }
+    if (c.chauffeur_lat && c.chauffeur_lng) {
+      setPosChauffeur([c.chauffeur_lat, c.chauffeur_lng]);
+    }
+    if (c.statut === "annulee" && c.annule_par === "chauffeur") {
+      setConfirm((prev) => prev && ({ ...prev, annuleParChauffeur: true, motif: c.motif_annulation }));
+    }
+    if (c.statut === "terminee") {
+      setConfirm((prev) => prev && ({ ...prev, terminee: true }));
+    }
+  }
+
+  // Temps réel + vérification de secours toutes les 3 secondes
   useEffect(() => {
     if (!courseId) return;
+
     const canal = supabase
       .channel("course-" + courseId)
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "courses", filter: "id=eq." + courseId },
-        (payload) => {
-          const c = payload.new;
-          if (c.chauffeur_nom) {
-            setConfirm((prev) => ({
-              ...prev,
-              chauffeur: { nom: c.chauffeur_nom, plate: c.chauffeur_plaque, car: c.chauffeur_vehicule },
-            }));
-          }
-          if (c.chauffeur_lat && c.chauffeur_lng) {
-            setPosChauffeur([c.chauffeur_lat, c.chauffeur_lng]);
-          }
-        }
+        (payload) => appliquerChangement(payload.new)
       ).subscribe();
-    return () => supabase.removeChannel(canal);
+
+    // Vérification de secours : interroge la base toutes les 3 secondes
+    const intervalle = setInterval(async () => {
+        console.log("Je verifie la course toutes les 3 secondes...");
+      const { data } = await supabase.from("courses").select("*").eq("id", courseId).single();
+      if (data) appliquerChangement(data);
+    }, 3000);
+
+    return () => {
+      supabase.removeChannel(canal);
+      clearInterval(intervalle);
+    };
   }, [courseId]);
 
-  function fermerConfirm() { setConfirm(null); setCourseId(null); setPosChauffeur(null); }
+  async function annulerClient(motif) {
+    if (!courseId) return;
+    await supabase
+      .from("courses")
+      .update({ statut: "annulee", annule_par: "client", motif_annulation: motif })
+      .eq("id", courseId);
+    reinitialiser();
+  }
+
+  function reinitialiser() {
+    setConfirm(null);
+    setCourseId(null);
+    setPosChauffeur(null);
+    setShowMotifs(false);
+    setDepart(null);
+    setDest(null);
+    setCalcul(null);
+    setChampActif("depart");
+  }
 
   return (
     <div id="app">
@@ -218,7 +264,28 @@ export default function Passager() {
       {confirm && (
         <div id="panel">
           <div id="panel-grip"></div>
-          {!confirm.chauffeur ? (
+
+          {confirm.terminee ? (
+            <div style={{ textAlign: "center", padding: "10px 0" }}>
+              <div className="check" style={{ background: "#16a34a", color: "#fff" }}>&#10003;</div>
+              <h2 style={{ color: "#16a34a", margin: "10px 0 6px" }}>Course terminée !</h2>
+              <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "12px" }}>
+                Merci d'avoir voyagé avec NDjam Ride.<br />
+                Montant : <b>{confirm.prix.toLocaleString("fr-FR")} FCFA</b>
+              </p>
+              <button id="close-confirm" style={{ background: "#16a34a" }} onClick={reinitialiser}>Nouvelle course</button>
+            </div>
+          ) : confirm.annuleParChauffeur ? (
+            <div style={{ textAlign: "center", padding: "10px 0" }}>
+              <div className="check" style={{ background: "#C60C30", color: "#fff" }}>!</div>
+              <h2 style={{ color: "#C60C30", margin: "10px 0 6px" }}>Course annulée</h2>
+              <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "12px" }}>
+                Le chauffeur a annulé la course.<br />
+                {confirm.motif ? `Motif : ${confirm.motif}` : ""}
+              </p>
+              <button id="close-confirm" onClick={reinitialiser}>Rechercher un autre chauffeur</button>
+            </div>
+          ) : !confirm.chauffeur ? (
             <div style={{ textAlign: "center", padding: "10px 0" }}>
               <div className="check" style={{ background: "#FECB00", color: "#002664" }}>&#9203;</div>
               <h2 style={{ color: "#0d1117", margin: "10px 0 6px" }}>Recherche en cours...</h2>
@@ -229,7 +296,9 @@ export default function Passager() {
                   <div className="driver-meta">Paiement : {confirm.payNom}</div>
                 </div>
               </div>
-              <button id="close-confirm" onClick={fermerConfirm}>Annuler la demande</button>
+              <button id="close-confirm" style={{ background: "#C60C30" }} onClick={() => annulerClient("Annulation pendant la recherche")}>
+                Annuler la demande
+              </button>
             </div>
           ) : (
             <div style={{ textAlign: "center", padding: "10px 0" }}>
@@ -247,7 +316,22 @@ export default function Passager() {
               <p style={{ color: "#6b7280", fontSize: "13px", margin: "8px 0" }}>
                 Trajet {classeNom} · <b>{confirm.prix.toLocaleString("fr-FR")} FCFA</b> · {confirm.payNom}
               </p>
-              <button id="close-confirm" onClick={fermerConfirm}>Terminer</button>
+
+              {!showMotifs ? (
+                <button id="close-confirm" style={{ background: "#C60C30" }} onClick={() => setShowMotifs(true)}>
+                  Annuler la course
+                </button>
+              ) : (
+                <div style={{ textAlign: "left", marginTop: "10px" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, marginBottom: "8px", textAlign: "center" }}>
+                    Pourquoi annulez-vous ?
+                  </div>
+                  {MOTIFS.map((m) => (
+                    <button key={m} className="motif-btn" onClick={() => annulerClient(m)}>{m}</button>
+                  ))}
+                  <button className="motif-retour" onClick={() => setShowMotifs(false)}>Retour</button>
+                </div>
+              )}
             </div>
           )}
         </div>

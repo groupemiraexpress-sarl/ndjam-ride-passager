@@ -26,49 +26,12 @@ body{
   box-shadow:0 0 40px rgba(0,0,0,.5);
 }
 
-/* ====== ÉCRAN D'ACCUEIL ====== */
-.accueil{
-  height:100%;
-  background:linear-gradient(160deg,var(--bleu) 0%,#001533 100%);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:30px;color:var(--blanc);
-}
-.accueil-logo{
-  width:80px;height:80px;border-radius:22px;
-  background:linear-gradient(135deg,var(--jaune) 0 33%,var(--rouge) 33% 66%,var(--bleu) 66% 100%);
-  border:3px solid var(--jaune);margin-bottom:20px;
-  box-shadow:0 8px 30px rgba(254,203,0,.3);
-}
-.accueil-titre{font-size:34px;font-weight:800;letter-spacing:.5px;}
-.accueil-titre span{color:var(--jaune);}
-.accueil-slogan{font-size:14px;opacity:.8;margin-top:6px;margin-bottom:40px;}
-.accueil-choix{display:flex;flex-direction:column;gap:16px;width:100%;max-width:340px;}
-.choix-card{
-  background:rgba(255,255,255,.1);
-  border:2px solid rgba(255,255,255,.15);
-  border-radius:18px;padding:24px;cursor:pointer;
-  text-align:center;transition:all .2s;
-  backdrop-filter:blur(6px);
-}
-.choix-card:active{transform:scale(.97);}
-.choix-card.passager:hover{border-color:var(--jaune);background:rgba(254,203,0,.15);}
-.choix-card.chauffeur:hover{border-color:var(--vert);background:rgba(22,163,74,.15);}
-.choix-ic{font-size:42px;margin-bottom:10px;}
-.choix-titre{font-size:18px;font-weight:700;}
-.choix-desc{font-size:13px;opacity:.75;margin-top:4px;}
-.accueil-pied{margin-top:40px;font-size:12px;opacity:.6;letter-spacing:.5px;}
-
-/* ====== EN-TÊTE ====== */
+/* EN-TÊTE */
 #header{
   position:absolute;top:0;left:0;right:0;z-index:1000;
   background:var(--bleu);color:var(--blanc);
   padding:14px 18px;display:flex;align-items:center;gap:10px;
   box-shadow:0 2px 12px rgba(0,0,0,.25);
-}
-.back-btn{
-  background:rgba(255,255,255,.15);border:none;color:#fff;
-  width:34px;height:34px;border-radius:9px;font-size:20px;cursor:pointer;
-  flex-shrink:0;display:flex;align-items:center;justify-content:center;
 }
 #logo-badge{
   width:34px;height:34px;border-radius:9px;
@@ -79,16 +42,35 @@ body{
 #header h1 span{color:var(--jaune);}
 #header small{display:block;font-size:10px;font-weight:400;opacity:.8;letter-spacing:.5px;}
 
-/* ====== CARTE ====== */
+/* CARTE */
 #map{position:absolute;top:0;left:0;right:0;bottom:0;z-index:1;}
 
-/* ====== PANNEAU BAS (PASSAGER) ====== */
+/* PANNEAU BAS */
 #panel{
   position:absolute;left:0;right:0;bottom:0;z-index:1000;
   background:var(--blanc);border-radius:22px 22px 0 0;
   box-shadow:0 -6px 24px rgba(0,0,0,.18);padding:18px 18px 26px;
 }
-#panel-grip{width:42px;height:5px;background:#d1d5db;border-radius:3px;margin:0 auto 16px;}
+
+/* PANNEAU À HAUTEURS MULTIPLES (écran de commande) */
+#panel.glissable{
+  display:flex;flex-direction:column;
+  height:85vh;
+  transition:transform .28s cubic-bezier(.4,0,.2,1);
+  touch-action:none;
+}
+#panel.glissable.sansanim{transition:none;}
+#panel.glissable .panel-contenu{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+}
+#panel-grip{width:42px;height:5px;background:#d1d5db;border-radius:3px;margin:0 auto 16px;flex-shrink:0;}
+#panel.glissable #panel-grip{cursor:grab;padding:0;}
+.grip-zone{
+  width:100%;padding:6px 0 10px;margin:-6px 0 6px;
+  display:flex;justify-content:center;flex-shrink:0;cursor:grab;
+}
+.grip-zone:active{cursor:grabbing;}
+
 .field{
   display:flex;align-items:center;gap:12px;background:var(--gris-clair);
   border-radius:13px;padding:13px 14px;margin-bottom:10px;cursor:pointer;
@@ -126,61 +108,60 @@ body{
 
 #hint{position:absolute;top:78px;left:50%;transform:translateX(-50%);z-index:600;background:var(--noir);color:var(--blanc);padding:9px 16px;border-radius:30px;font-size:13px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.3);white-space:nowrap;animation:slideUp .3s;}
 
-/* ====== CONFIRMATION ====== */
-#confirm{position:absolute;inset:0;z-index:2000;background:rgba(13,17,23,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:24px;}
-#confirm.show{animation:slideUp .25s;}
-#confirm-box{background:var(--blanc);border-radius:20px;padding:26px 22px;width:100%;text-align:center;}
-#confirm-box .check{width:64px;height:64px;border-radius:50%;background:var(--bleu);color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:32px;}
-#confirm-box h2{color:var(--noir);font-size:20px;margin-bottom:6px;}
-#confirm-box p{color:var(--gris);font-size:14px;line-height:1.5;margin-bottom:6px;}
+/* CONFIRMATION */
+.check{width:64px;height:64px;border-radius:50%;background:var(--bleu);color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:32px;}
 .car-info{background:var(--gris-clair);border-radius:13px;padding:14px;margin:16px 0;display:flex;align-items:center;gap:13px;text-align:left;}
 .car-info .plate{background:var(--jaune);color:var(--noir);font-weight:800;padding:6px 10px;border-radius:7px;font-size:15px;letter-spacing:1px;}
 .car-info .driver-nm{font-weight:700;color:var(--noir);font-size:15px;}
 .car-info .driver-meta{font-size:12px;color:var(--gris);}
 #close-confirm{width:100%;border:none;border-radius:12px;background:var(--bleu);color:#fff;font-weight:700;padding:13px;cursor:pointer;font-size:15px;margin-top:6px;}
-.eta-badge{color:var(--rouge);font-weight:800;}
 
-/* ====== MODE CHAUFFEUR ====== */
-.chauffeur-body{
-  position:absolute;top:62px;left:0;right:0;bottom:0;
-  background:var(--gris-clair);overflow-y:auto;padding:16px;
+/* BOUTONS MOTIFS D'ANNULATION */
+.motif-btn{
+  width:100%;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;
+  color:#0d1117;font-size:13px;font-weight:600;padding:11px;cursor:pointer;
+  margin-bottom:7px;text-align:left;transition:all .15s;
 }
-.statut-bar{
-  background:var(--blanc);border-radius:14px;padding:14px 16px;
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);
+.motif-btn:hover{border-color:#C60C30;background:#fef2f2;color:#C60C30;}
+.motif-retour{
+  width:100%;border:none;border-radius:10px;background:#e5e7eb;
+  color:#6b7280;font-size:13px;font-weight:700;padding:11px;cursor:pointer;margin-top:4px;
 }
-.statut-nom{font-weight:700;font-size:15px;color:var(--noir);}
-.statut-vehicule{font-size:12px;color:var(--gris);margin-top:2px;}
-.statut-toggle{
-  display:flex;align-items:center;gap:7px;background:#e5e7eb;
-  padding:7px 12px;border-radius:30px;cursor:pointer;font-size:12px;font-weight:700;color:var(--gris);
-}
-.statut-toggle.on{background:#dcfce7;color:var(--vert);}
-.toggle-dot{width:10px;height:10px;border-radius:50%;background:var(--gris);}
-.statut-toggle.on .toggle-dot{background:var(--vert);box-shadow:0 0 0 3px rgba(22,163,74,.2);}
 
-.liste-titre{font-size:14px;font-weight:700;color:var(--noir);margin-bottom:12px;padding-left:4px;}
-.aucune-course{text-align:center;color:var(--gris);font-size:14px;padding:40px 20px;}
-
-.course-card{
-  background:var(--blanc);border-radius:14px;padding:16px;margin-bottom:12px;
-  box-shadow:0 2px 8px rgba(0,0,0,.06);border-left:4px solid var(--jaune);
+/* ===================== ÉCRAN D'ACCUEIL / AUTH ===================== */
+.accueil{
+  position:absolute;inset:0;z-index:2000;
+  background:linear-gradient(160deg,var(--bleu) 0%,#001a47 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px;
 }
-.course-card-haut{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-.course-card-prix{font-size:22px;font-weight:800;color:var(--bleu);}
-.course-card-classe{background:var(--jaune);color:var(--bleu);font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;}
-.course-card-detail{font-size:13px;color:var(--gris);margin-bottom:6px;}
-.course-card-coords{font-size:11px;color:#9ca3af;margin-bottom:12px;line-height:1.6;}
-.btn-accepter{width:100%;border:none;border-radius:11px;background:var(--vert);color:#fff;font-weight:700;padding:13px;cursor:pointer;font-size:15px;}
-.btn-accepter:active{transform:scale(.98);}
+.accueil-logo{text-align:center;margin-bottom:30px;}
+.accueil-logo #logo-badge{margin:0 auto 14px;}
+.accueil-logo h1{color:#fff;font-size:30px;font-weight:800;letter-spacing:.5px;}
+.accueil-logo h1 span{color:var(--jaune);}
+.accueil-logo p{color:rgba(255,255,255,.7);font-size:13px;margin-top:4px;}
 
-.course-active{
-  background:var(--blanc);border-radius:16px;padding:22px;text-align:center;
-  box-shadow:0 4px 16px rgba(0,0,0,.1);border-top:4px solid var(--vert);
+.accueil-carte{
+  width:100%;max-width:360px;background:#fff;border-radius:20px;
+  padding:22px;box-shadow:0 12px 40px rgba(0,0,0,.3);
 }
-.course-active-titre{font-size:15px;font-weight:700;color:var(--vert);margin-bottom:10px;}
-.course-active-prix{font-size:32px;font-weight:800;color:var(--bleu);}
-.course-active-detail{font-size:13px;color:var(--gris);margin:8px 0 14px;}
-.course-active-coords{font-size:12px;color:#6b7280;text-align:left;background:var(--gris-clair);padding:12px;border-radius:10px;line-height:1.8;margin-bottom:16px;}
-.btn-terminer{width:100%;border:none;border-radius:11px;background:var(--rouge);color:#fff;font-weight:700;padding:14px;cursor:pointer;font-size:15px;}
+.accueil-tabs{display:flex;gap:6px;background:var(--gris-clair);border-radius:12px;padding:4px;margin-bottom:18px;}
+.accueil-tabs button{
+  flex:1;border:none;background:transparent;padding:10px;border-radius:9px;
+  font-size:13px;font-weight:700;color:var(--gris);cursor:pointer;transition:all .15s;
+}
+.accueil-tabs button.tab-actif{background:#fff;color:var(--bleu);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.accueil-input{
+  width:100%;border:2px solid #e5e7eb;border-radius:12px;
+  padding:13px 14px;font-size:14px;margin-bottom:12px;outline:none;transition:border-color .15s;
+}
+.accueil-input:focus{border-color:var(--jaune);}
+.accueil-btn{
+  width:100%;border:none;border-radius:12px;background:var(--rouge);color:#fff;
+  font-size:15px;font-weight:800;padding:14px;cursor:pointer;margin-top:4px;transition:opacity .2s;
+}
+.accueil-btn:disabled{opacity:.6;cursor:not-allowed;}
+.accueil-erreur{background:#fef2f2;color:var(--rouge);border-radius:9px;padding:10px;font-size:12px;font-weight:600;margin-bottom:10px;text-align:center;}
+.accueil-info{background:#dcfce7;color:var(--vert);border-radius:9px;padding:10px;font-size:12px;font-weight:600;margin-bottom:10px;text-align:center;}
+.accueil-bascule{text-align:center;font-size:13px;color:var(--gris);margin-top:14px;}
+.accueil-bascule span{color:var(--bleu);font-weight:700;cursor:pointer;}
