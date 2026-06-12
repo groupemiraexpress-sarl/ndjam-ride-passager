@@ -5,15 +5,19 @@ import "leaflet/dist/leaflet.css";
 import { supabase } from "./supabase";
 import "./App.css";
 
-const TARIF = { base: 500, parKm: 250, parMin: 30, minimum: 700 };
-const VITESSE_MOY = 22;
 const NDJAMENA = [12.1348, 15.0557];
+const VITESSE_MOY = 22;
 
-const CLASSES = [
-  { mult: 1, nom: "Start", ic: "🛵" },
-  { mult: 1.5, nom: "Eco", ic: "🚗" },
-  { mult: 2.2, nom: "Confort", ic: "🚙" },
+// 4 catégories avec prix au km (base) pour N'Djamena.
+// Pour remplacer l'emoji par une vraie image plus tard :
+// mets ton image dans /public et remplace "ic" par <img src="/moto.png" .../> dans le rendu.
+const CATEGORIES = [
+  { id: "moto",        nom: "Moto",     ic: "🛵", prixKm: 400,  minimum: 500 },
+  { id: "eco",         nom: "Éco",      ic: "🚗", prixKm: 550,  minimum: 700 },
+  { id: "confort",     nom: "Confort",  ic: "🚙", prixKm: 700,  minimum: 900 },
+  { id: "confortplus", nom: "Confort+", ic: "🚘", prixKm: 1400, minimum: 1500 },
 ];
+
 const PAIEMENTS = [
   { id: "airtel", nom: "Airtel Money", ic: "📱" },
   { id: "moov", nom: "Moov Money", ic: "📲" },
@@ -35,6 +39,13 @@ const TAGS_NOTE = [
 ];
 
 const POSITIONS = { plein: 0, moyen: 45, petit: 72 };
+const SUPPLEMENT_POINTE = 1.2; // +20%
+
+// Heure de pointe : 7h-9h et 17h-19h
+function estHeurePointe() {
+  const h = new Date().getHours();
+  return (h >= 7 && h < 9) || (h >= 17 && h < 19);
+}
 
 function distanceKm(a, b) {
   const R = 6371, toRad = (x) => (x * Math.PI) / 180;
@@ -43,6 +54,13 @@ function distanceKm(a, b) {
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 function arrondir(p) { return Math.round(p / 50) * 50; }
+
+// Calcule le prix d'une catégorie pour une distance donnée
+function prixCategorie(cat, km, pointe) {
+  let p = Math.max(cat.prixKm * km, cat.minimum);
+  if (pointe) p = p * SUPPLEMENT_POINTE;
+  return arrondir(p);
+}
 
 function icone(couleur) {
   return L.divIcon({
@@ -74,13 +92,19 @@ function AjusterVue({ points }) {
 
 /* ===================== ÉCRAN D'ACCUEIL / AUTH ===================== */
 function Accueil() {
-  const [mode, setMode] = useState("connexion"); // connexion | inscription
+  const [mode, setMode] = useState("connexion");
   const [email, setEmail] = useState("");
   const [mdp, setMdp] = useState("");
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState(null);
   const [info, setInfo] = useState(null);
 
+  function traduireErreur(msg) {
+    if (msg.includes("Invalid login")) return "Email ou mot de passe incorrect.";
+    if (msg.includes("already registered")) return "Cet email a déjà un compte. Connectez-vous.";
+    if (msg.includes("at least 6")) return "Le mot de passe doit faire au moins 6 caractères.";
+    return msg;
+  }
   async function soumettre() {
     setErreur(null); setInfo(null);
     if (!email.trim() || !mdp.trim()) { setErreur("Email et mot de passe requis."); return; }
@@ -96,13 +120,6 @@ function Accueil() {
     setChargement(false);
   }
 
-  function traduireErreur(msg) {
-    if (msg.includes("Invalid login")) return "Email ou mot de passe incorrect.";
-    if (msg.includes("already registered")) return "Cet email a déjà un compte. Connectez-vous.";
-    if (msg.includes("at least 6")) return "Le mot de passe doit faire au moins 6 caractères.";
-    return msg;
-  }
-
   return (
     <div className="accueil">
       <div className="accueil-logo">
@@ -110,42 +127,23 @@ function Accueil() {
         <h1>NDjam<span>Ride</span></h1>
         <p>Votre course à N'Djamena</p>
       </div>
-
       <div className="accueil-carte">
         <div className="accueil-tabs">
-          <button
-            className={mode === "connexion" ? "tab-actif" : ""}
-            onClick={() => { setMode("connexion"); setErreur(null); setInfo(null); }}
-          >Se connecter</button>
-          <button
-            className={mode === "inscription" ? "tab-actif" : ""}
-            onClick={() => { setMode("inscription"); setErreur(null); setInfo(null); }}
-          >Créer un compte</button>
+          <button className={mode === "connexion" ? "tab-actif" : ""}
+            onClick={() => { setMode("connexion"); setErreur(null); setInfo(null); }}>Se connecter</button>
+          <button className={mode === "inscription" ? "tab-actif" : ""}
+            onClick={() => { setMode("inscription"); setErreur(null); setInfo(null); }}>Créer un compte</button>
         </div>
-
-        <input
-          type="email"
-          placeholder="Adresse email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="accueil-input"
-        />
-        <input
-          type="password"
-          placeholder="Mot de passe"
-          value={mdp}
+        <input type="email" placeholder="Adresse email" value={email}
+          onChange={(e) => setEmail(e.target.value)} className="accueil-input" />
+        <input type="password" placeholder="Mot de passe" value={mdp}
           onChange={(e) => setMdp(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") soumettre(); }}
-          className="accueil-input"
-        />
-
+          onKeyDown={(e) => { if (e.key === "Enter") soumettre(); }} className="accueil-input" />
         {erreur && <div className="accueil-erreur">{erreur}</div>}
         {info && <div className="accueil-info">{info}</div>}
-
         <button className="accueil-btn" onClick={soumettre} disabled={chargement}>
           {chargement ? "Patientez..." : mode === "connexion" ? "Se connecter" : "Créer mon compte"}
         </button>
-
         <p className="accueil-bascule">
           {mode === "connexion" ? (
             <>Pas encore de compte ? <span onClick={() => { setMode("inscription"); setErreur(null); }}>Inscrivez-vous</span></>
@@ -160,17 +158,15 @@ function Accueil() {
 
 /* ===================== APP PRINCIPALE ===================== */
 export default function Passager() {
-  // Authentification
   const [session, setSession] = useState(null);
   const [authPrete, setAuthPrete] = useState(false);
 
   const [champActif, setChampActif] = useState("depart");
   const [depart, setDepart] = useState(null);
   const [dest, setDest] = useState(null);
-  const [classe, setClasse] = useState(1);
-  const [classeNom, setClasseNom] = useState("Start");
+  const [categorie, setCategorie] = useState("eco"); // id de la catégorie choisie
   const [paiement, setPaiement] = useState("airtel");
-  const [calcul, setCalcul] = useState(null);
+  const [calcul, setCalcul] = useState(null);  // { km, min, pointe }
   const [confirm, setConfirm] = useState(null);
   const [courseId, setCourseId] = useState(null);
   const [erreur, setErreur] = useState(null);
@@ -188,15 +184,12 @@ export default function Passager() {
   const [sansAnim, setSansAnim] = useState(false);
   const dragRef = useRef({ actif: false, yDepart: 0, offsetDepart: 0 });
 
-  // Récupérer la session au démarrage + écouter les changements
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setAuthPrete(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
-      setSession(sess);
-    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => setSession(sess));
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -219,23 +212,15 @@ export default function Passager() {
     if (!depart || !dest) return;
     const km = distanceKm(depart, dest) * 1.35;
     const min = (km / VITESSE_MOY) * 60;
-    let prixBase = TARIF.base + km * TARIF.parKm + min * TARIF.parMin;
-    prixBase = Math.max(prixBase, TARIF.minimum);
-    setCalcul({ km, min, prixBase });
+    setCalcul({ km, min, pointe: estHeurePointe() });
     allerVers("plein");
   }, [depart, dest]);
 
-  const prixActuel = calcul ? arrondir(calcul.prixBase * classe) : null;
+  const catChoisie = CATEGORIES.find((c) => c.id === categorie);
+  const prixActuel = calcul ? prixCategorie(catChoisie, calcul.km, calcul.pointe) : null;
 
-  function allerVers(nom) {
-    setNiveau(nom);
-    setOffset(POSITIONS[nom]);
-    setSansAnim(false);
-  }
-  function debutDrag(clientY) {
-    dragRef.current = { actif: true, yDepart: clientY, offsetDepart: offset };
-    setSansAnim(true);
-  }
+  function allerVers(nom) { setNiveau(nom); setOffset(POSITIONS[nom]); setSansAnim(false); }
+  function debutDrag(clientY) { dragRef.current = { actif: true, yDepart: clientY, offsetDepart: offset }; setSansAnim(true); }
   function pendantDrag(clientY) {
     if (!dragRef.current.actif) return;
     const deltaPx = clientY - dragRef.current.yDepart;
@@ -276,7 +261,8 @@ export default function Passager() {
     const nouvelleCourse = {
       depart_lat: depart[0], depart_lng: depart[1],
       dest_lat: dest[0], dest_lng: dest[1],
-      classe: classeNom, prix_fcfa: prixActuel,
+      classe: categorie, // identifiant : moto / eco / confort / confortplus
+      prix_fcfa: prixActuel,
       distance_km: parseFloat(calcul.km.toFixed(1)),
       duree_min: Math.round(calcul.min),
       mode_paiement: paiement, statut: "recherche",
@@ -285,7 +271,7 @@ export default function Passager() {
     if (error) { setErreur(error.message); return; }
     setCourseId(data.id);
     setStatut("recherche");
-    setConfirm({ prix: prixActuel, payNom: PAIEMENTS.find((p) => p.id === paiement).nom });
+    setConfirm({ prix: prixActuel, payNom: PAIEMENTS.find((p) => p.id === paiement).nom, catNom: catChoisie.nom });
   }
 
   useEffect(() => {
@@ -303,15 +289,11 @@ export default function Passager() {
               chauffeur: { nom: c.chauffeur_nom, plate: c.chauffeur_plaque, car: c.chauffeur_vehicule, tel: c.chauffeur_tel },
             }));
           }
-          if (c.chauffeur_lat && c.chauffeur_lng) {
-            setPosChauffeur([c.chauffeur_lat, c.chauffeur_lng]);
-          }
+          if (c.chauffeur_lat && c.chauffeur_lng) setPosChauffeur([c.chauffeur_lat, c.chauffeur_lng]);
           if (c.statut === "annulee" && c.annule_par === "chauffeur") {
             setConfirm((prev) => ({ ...prev, annuleParChauffeur: true, motif: c.motif_annulation }));
           }
-          if (c.statut === "terminee") {
-            setConfirm((prev) => ({ ...prev, termine: true }));
-          }
+          if (c.statut === "terminee") setConfirm((prev) => ({ ...prev, termine: true }));
         }
       ).subscribe();
     return () => supabase.removeChannel(canal);
@@ -320,9 +302,7 @@ export default function Passager() {
   useEffect(() => {
     if (!courseId) return;
     (async () => {
-      const { data } = await supabase
-        .from("messages").select("*").eq("course_id", courseId)
-        .order("created_at", { ascending: true });
+      const { data } = await supabase.from("messages").select("*").eq("course_id", courseId).order("created_at", { ascending: true });
       if (data) setMessages(data);
     })();
     const canalChat = supabase
@@ -335,9 +315,7 @@ export default function Passager() {
   }, [courseId]);
 
   useEffect(() => {
-    if (chatOuvert && finChatRef.current) {
-      finChatRef.current.scrollIntoView({ behavior: "smooth" });
-    }
+    if (chatOuvert && finChatRef.current) finChatRef.current.scrollIntoView({ behavior: "smooth" });
   }, [messages, chatOuvert]);
 
   async function envoyerMessage() {
@@ -346,28 +324,18 @@ export default function Passager() {
     setNouveauMsg("");
     await supabase.from("messages").insert({ course_id: courseId, expediteur: "client", contenu: texte });
   }
-
   async function annulerClient(motif) {
     if (!courseId) return;
-    await supabase.from("courses")
-      .update({ statut: "annulee", annule_par: "client", motif_annulation: motif })
-      .eq("id", courseId);
+    await supabase.from("courses").update({ statut: "annulee", annule_par: "client", motif_annulation: motif }).eq("id", courseId);
     reinitialiser();
   }
-
   async function envoyerNote() {
     if (courseId && noteChoisie > 0) {
-      await supabase.from("courses")
-        .update({ note: noteChoisie, tags: tagsChoisis.join(", ") })
-        .eq("id", courseId);
+      await supabase.from("courses").update({ note: noteChoisie, tags: tagsChoisis.join(", ") }).eq("id", courseId);
     }
     reinitialiser();
   }
-
-  function toggleTag(id) {
-    setTagsChoisis((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]);
-  }
-
+  function toggleTag(id) { setTagsChoisis((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]); }
   function reinitialiser() {
     setConfirm(null); setCourseId(null); setPosChauffeur(null); setStatut(null);
     setShowMotifs(false); setNoteChoisie(0); setTagsChoisis([]);
@@ -376,32 +344,19 @@ export default function Passager() {
     allerVers("moyen");
   }
 
-  // --- Écrans de chargement / accueil ---
   if (!authPrete) {
-    return (
-      <div id="app" style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "#002664" }}>
-        <div style={{ color: "#fff" }}>Chargement...</div>
-      </div>
-    );
+    return <div id="app" style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "#002664" }}><div style={{ color: "#fff" }}>Chargement...</div></div>;
   }
   if (!session) {
     return <div id="app"><Accueil /></div>;
   }
 
-  // --- App connectée ---
   return (
     <div id="app">
       <div id="header">
         <div id="logo-badge"></div>
         <h1>NDjam<span> Ride</span><small>Votre course à N'Djamena</small></h1>
-        <button
-          onClick={deconnexion}
-          style={{
-            marginLeft: "auto", background: "rgba(255,255,255,.15)", border: "none",
-            color: "#fff", padding: "7px 12px", borderRadius: "8px", cursor: "pointer",
-            fontSize: "12px", fontWeight: 700,
-          }}
-        >
+        <button onClick={deconnexion} style={{ marginLeft: "auto", background: "rgba(255,255,255,.15)", border: "none", color: "#fff", padding: "7px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}>
           Déconnexion
         </button>
       </div>
@@ -425,18 +380,12 @@ export default function Passager() {
       )}
 
       {!confirm && (
-        <div
-          id="panel"
-          className={"glissable" + (sansAnim ? " sansanim" : "")}
-          style={{ transform: `translateY(${offset}vh)` }}
-        >
-          <div
-            className="grip-zone"
+        <div id="panel" className={"glissable" + (sansAnim ? " sansanim" : "")} style={{ transform: `translateY(${offset}vh)` }}>
+          <div className="grip-zone"
             onMouseDown={(e) => debutDrag(e.clientY)}
             onTouchStart={(e) => debutDrag(e.touches[0].clientY)}
             onTouchMove={(e) => pendantDrag(e.touches[0].clientY)}
-            onTouchEnd={finDrag}
-          >
+            onTouchEnd={finDrag}>
             <div id="panel-grip"></div>
           </div>
 
@@ -466,13 +415,18 @@ export default function Passager() {
                   <div id="est-price">{prixActuel.toLocaleString("fr-FR")} <small>FCFA</small></div>
                   <div id="est-meta">📏 {calcul.km.toFixed(1)} km<br />⏱ ~{Math.round(calcul.min)} min</div>
                 </div>
+                {calcul.pointe && (
+                  <div style={{ background: "rgba(254,203,0,.2)", color: "#FECB00", fontSize: "12px", fontWeight: 700, padding: "6px 10px", borderRadius: "8px", marginTop: "10px", textAlign: "center" }}>
+                    ⚡ +20% heure de pointe
+                  </div>
+                )}
                 <div id="classes">
-                  {CLASSES.map((c) => (
-                    <div key={c.nom} className={"class-card" + (classe === c.mult ? " sel" : "")}
-                      onClick={() => { setClasse(c.mult); setClasseNom(c.nom); }}>
+                  {CATEGORIES.map((c) => (
+                    <div key={c.id} className={"class-card" + (categorie === c.id ? " sel" : "")}
+                      onClick={() => setCategorie(c.id)}>
                       <div className="ic">{c.ic}</div>
                       <div className="nm">{c.nom}</div>
-                      <div className="pr">{arrondir(calcul.prixBase * c.mult).toLocaleString("fr-FR")} F</div>
+                      <div className="pr">{prixCategorie(c, calcul.km, calcul.pointe).toLocaleString("fr-FR")} F</div>
                     </div>
                   ))}
                 </div>
@@ -548,7 +502,7 @@ export default function Passager() {
               <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "12px" }}>En attente d'un chauffeur.</p>
               <div className="car-info" style={{ justifyContent: "center" }}>
                 <div>
-                  <div className="driver-nm">Trajet {classeNom} · {confirm.prix.toLocaleString("fr-FR")} FCFA</div>
+                  <div className="driver-nm">{confirm.catNom} · {confirm.prix.toLocaleString("fr-FR")} FCFA</div>
                   <div className="driver-meta">Paiement : {confirm.payNom}</div>
                 </div>
               </div>
@@ -573,24 +527,17 @@ export default function Passager() {
                 </div>
               </div>
               <p style={{ color: "#6b7280", fontSize: "13px", margin: "8px 0" }}>
-                Trajet {classeNom} · <b>{confirm.prix.toLocaleString("fr-FR")} FCFA</b> · {confirm.payNom}
+                {confirm.catNom} · <b>{confirm.prix.toLocaleString("fr-FR")} FCFA</b> · {confirm.payNom}
               </p>
               <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                 {confirm.chauffeur.tel ? (
                   <a href={"tel:" + confirm.chauffeur.tel}
-                    style={{
-                      flex: 1, padding: "12px", borderRadius: "12px", background: "#16a34a",
-                      color: "#fff", fontWeight: 700, fontSize: "15px", textDecoration: "none",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
+                    style={{ flex: 1, padding: "12px", borderRadius: "12px", background: "#16a34a", color: "#fff", fontWeight: 700, fontSize: "15px", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     📞 Appeler
                   </a>
                 ) : null}
                 <button onClick={() => setChatOuvert(true)}
-                  style={{
-                    flex: 1, padding: "12px", borderRadius: "12px", border: "none", cursor: "pointer",
-                    background: "#002664", color: "#fff", fontWeight: 700, fontSize: "15px",
-                  }}>
+                  style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "none", cursor: "pointer", background: "#002664", color: "#fff", fontWeight: 700, fontSize: "15px" }}>
                   💬 Discussion
                 </button>
               </div>
@@ -600,9 +547,7 @@ export default function Passager() {
                 </button>
               ) : (
                 <div style={{ textAlign: "left", marginTop: "10px" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, marginBottom: "8px", textAlign: "center" }}>
-                    Pourquoi annulez-vous ?
-                  </div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, marginBottom: "8px", textAlign: "center" }}>Pourquoi annulez-vous ?</div>
                   {MOTIFS.map((m) => (
                     <button key={m} className="motif-btn" onClick={() => annulerClient(m)}>{m}</button>
                   ))}
@@ -617,8 +562,7 @@ export default function Passager() {
       {chatOuvert && (
         <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#fff", display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "14px 16px", borderBottom: "1px solid #e5e7eb", background: "#002664", color: "#fff" }}>
-            <button onClick={() => setChatOuvert(false)}
-              style={{ background: "none", border: "none", color: "#fff", fontSize: "22px", cursor: "pointer" }}>←</button>
+            <button onClick={() => setChatOuvert(false)} style={{ background: "none", border: "none", color: "#fff", fontSize: "22px", cursor: "pointer" }}>←</button>
             <div>
               <div style={{ fontWeight: 700 }}>{confirm?.chauffeur?.nom || "Chauffeur"}</div>
               <div style={{ fontSize: "12px", opacity: 0.8 }}>{confirm?.chauffeur?.car || ""}</div>
