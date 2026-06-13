@@ -266,12 +266,13 @@ export default function Passager() {
       distance_km: parseFloat(calcul.km.toFixed(1)),
       duree_min: Math.round(calcul.min),
       mode_paiement: paiement, statut: "recherche",
+      code_demarrage: String(Math.floor(1000 + Math.random() * 9000)),
     };
     const { data, error } = await supabase.from("courses").insert(nouvelleCourse).select().single();
     if (error) { setErreur(error.message); return; }
     setCourseId(data.id);
     setStatut("recherche");
-    setConfirm({ prix: prixActuel, payNom: PAIEMENTS.find((p) => p.id === paiement).nom, catNom: catChoisie.nom });
+    setConfirm({ prix: prixActuel, payNom: PAIEMENTS.find((p) => p.id === paiement).nom, catNom: catChoisie.nom, code: data.code_demarrage });
   }
 
   useEffect(() => {
@@ -519,6 +520,20 @@ export default function Passager() {
               <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "10px" }}>
                 {posChauffeur ? "Suivez sa position sur la carte" : "Votre chauffeur arrive bientôt"}
               </p>
+              {confirm.code && (
+                <div style={{ background: "#002664", borderRadius: "14px", padding: "14px", marginBottom: "12px" }}>
+                  <div style={{ color: "#fff", fontSize: "12px", marginBottom: "8px" }}>
+                    Communiquez ce code à votre chauffeur pour démarrer la course
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "center", gap: "8px" }}>
+                    {confirm.code.split("").map((chiffre, i) => (
+                      <div key={i} style={{ background: "#fff", color: "#002664", fontSize: "26px", fontWeight: 800, width: "44px", height: "54px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {chiffre}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="car-info">
                 <div className="plate">{confirm.chauffeur.plate}</div>
                 <div>
