@@ -165,3 +165,199 @@ body{
 .accueil-info{background:#dcfce7;color:var(--vert);border-radius:9px;padding:10px;font-size:12px;font-weight:600;margin-bottom:10px;text-align:center;}
 .accueil-bascule{text-align:center;font-size:13px;color:var(--gris);margin-top:14px;}
 .accueil-bascule span{color:var(--bleu);font-weight:700;cursor:pointer;}
+
+/* ===== À COLLER À LA FIN DE TON App.css PASSAGER ===== */
+
+/* ÉCRAN DE CHOIX */
+.choix-wrap{
+  position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;
+}
+.choix-header{
+  background:#0d1117;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;
+}
+.choix-header h1{font-size:18px;font-weight:800;}
+.choix-header h1 span{color:#FECB00;}
+.choix-deco{
+  margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;
+  padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;
+}
+.choix-contenu{flex:1;padding:28px 20px;}
+.choix-titre{font-size:22px;font-weight:800;color:#0d1117;margin-bottom:4px;}
+.choix-sous{font-size:14px;color:#6b7280;margin-bottom:24px;}
+.choix-carte{
+  background:#fff;border-radius:16px;padding:20px;margin-bottom:14px;
+  display:flex;align-items:center;gap:16px;cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);transition:transform .12s,box-shadow .12s;
+  border:2px solid transparent;
+}
+.choix-carte:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.1);border-color:#FECB00;}
+.choix-carte:active{transform:scale(.99);}
+.choix-ic{font-size:40px;flex-shrink:0;}
+.choix-nom{font-size:17px;font-weight:800;color:#0d1117;margin-bottom:2px;}
+.choix-desc{font-size:13px;color:#6b7280;line-height:1.4;}
+.choix-fleche{margin-left:auto;font-size:28px;color:#9ca3af;font-weight:300;}
+
+/* ÉCRAN ACCUEIL COURSE (voiture Mira Express) */
+.acc-course-wrap{
+  position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;
+}
+.acc-course-contenu{flex:1;padding:20px;overflow-y:auto;}
+.acc-voiture-zone{
+  background:#fff;border-radius:18px;padding:18px;margin-bottom:18px;text-align:center;
+  box-shadow:0 2px 12px rgba(0,0,0,.06);
+}
+.acc-voiture-img{width:100%;max-width:420px;height:auto;object-fit:contain;}
+.acc-voiture-txt{font-size:15px;font-weight:700;color:#0d1117;margin-top:6px;}
+.acc-ou{
+  background:#fff;border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:14px;
+  cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:16px;
+  border:2px solid transparent;transition:border-color .12s;
+}
+.acc-ou:hover{border-color:#FECB00;}
+.acc-ou-ic{font-size:22px;}
+.acc-ou-txt{font-size:17px;font-weight:800;color:#0d1117;}
+.acc-ou-fleche{margin-left:auto;font-size:26px;color:#9ca3af;}
+.acc-commander-btn{
+  width:100%;border:none;border-radius:14px;background:#C60C30;color:#fff;
+  font-size:16px;font-weight:800;padding:16px;cursor:pointer;
+}
+.acc-commander-btn:active{transform:scale(.99);}
+
+/* ===== À COLLER À LA FIN DE TON App.css PASSAGER ===== */
+/* (Si tu avais déjà collé les blocs choix/accueil, REMPLACE-les par tout ce bloc) */
+
+/* ÉCRAN DE CHOIX */
+.choix-wrap{position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;}
+.choix-header{background:#0d1117;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;}
+.choix-header h1{font-size:18px;font-weight:800;}
+.choix-header h1 span{color:#FECB00;}
+.choix-deco{margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;}
+.choix-contenu{flex:1;padding:28px 20px;}
+.choix-titre{font-size:22px;font-weight:800;color:#0d1117;margin-bottom:4px;}
+.choix-sous{font-size:14px;color:#6b7280;margin-bottom:24px;}
+.choix-carte{background:#fff;border-radius:16px;padding:20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06);transition:transform .12s,box-shadow .12s;border:2px solid transparent;}
+.choix-carte:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.1);border-color:#FECB00;}
+.choix-carte:active{transform:scale(.99);}
+.choix-ic{font-size:40px;flex-shrink:0;}
+.choix-nom{font-size:17px;font-weight:800;color:#0d1117;margin-bottom:2px;}
+.choix-desc{font-size:13px;color:#6b7280;line-height:1.4;}
+.choix-fleche{margin-left:auto;font-size:28px;color:#9ca3af;font-weight:300;}
+
+/* ÉCRAN ACCUEIL COURSE */
+.acc-course-wrap{position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;}
+.acc-course-contenu{flex:1;padding:20px;overflow-y:auto;}
+.acc-voiture-zone{background:#fff;border-radius:18px;padding:18px;margin-bottom:18px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.06);}
+.acc-voiture-img{width:100%;max-width:420px;height:auto;object-fit:contain;}
+.acc-voiture-txt{font-size:15px;font-weight:700;color:#0d1117;margin-top:6px;}
+.acc-ou{background:#fff;border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:16px;border:2px solid transparent;transition:border-color .12s;}
+.acc-ou:hover{border-color:#FECB00;}
+.acc-ou-ic{font-size:22px;}
+.acc-ou-txt{font-size:17px;font-weight:800;color:#0d1117;}
+.acc-ou-fleche{margin-left:auto;font-size:26px;color:#9ca3af;}
+.acc-commander-btn{width:100%;border:none;border-radius:14px;background:#C60C30;color:#fff;font-size:16px;font-weight:800;padding:16px;cursor:pointer;margin-bottom:20px;}
+.acc-commander-btn:active{transform:scale(.99);}
+
+/* ===== À COLLER À LA FIN DE TON App.css PASSAGER ===== */
+/* (Si tu avais déjà collé un bloc choix/accueil/bannières, REMPLACE-le par tout ce bloc) */
+
+/* ÉCRAN DE CHOIX */
+.choix-wrap{position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;}
+.choix-header{background:#0d1117;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;}
+.choix-header h1{font-size:18px;font-weight:800;}
+.choix-header h1 span{color:#FECB00;}
+.choix-deco{margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;}
+.choix-contenu{flex:1;padding:28px 20px;}
+.choix-titre{font-size:22px;font-weight:800;color:#0d1117;margin-bottom:4px;}
+.choix-sous{font-size:14px;color:#6b7280;margin-bottom:24px;}
+.choix-carte{background:#fff;border-radius:16px;padding:20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06);transition:transform .12s,box-shadow .12s;border:2px solid transparent;}
+.choix-carte:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.1);border-color:#FECB00;}
+.choix-carte:active{transform:scale(.99);}
+.choix-ic{font-size:40px;flex-shrink:0;}
+.choix-nom{font-size:17px;font-weight:800;color:#0d1117;margin-bottom:2px;}
+.choix-desc{font-size:13px;color:#6b7280;line-height:1.4;}
+.choix-fleche{margin-left:auto;font-size:28px;color:#9ca3af;font-weight:300;}
+
+/* ÉCRAN ACCUEIL COURSE */
+.acc-course-wrap{position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;}
+.acc-course-contenu{flex:1;padding:20px;overflow-y:auto;}
+.acc-voiture-zone{background:#fff;border-radius:18px;padding:18px;margin-bottom:18px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.06);}
+.acc-voiture-img{width:100%;max-width:420px;height:auto;object-fit:contain;}
+.acc-voiture-txt{font-size:15px;font-weight:700;color:#0d1117;margin-top:6px;}
+.acc-ou{background:#fff;border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:16px;border:2px solid transparent;transition:border-color .12s;}
+.acc-ou:hover{border-color:#FECB00;}
+.acc-ou-ic{font-size:22px;}
+.acc-ou-txt{font-size:17px;font-weight:800;color:#0d1117;}
+.acc-ou-fleche{margin-left:auto;font-size:26px;color:#9ca3af;}
+.acc-commander-btn{width:100%;border:none;border-radius:14px;background:#C60C30;color:#fff;font-size:16px;font-weight:800;padding:16px;cursor:pointer;margin-bottom:20px;}
+.acc-commander-btn:active{transform:scale(.99);}
+
+/* BANNIÈRES : 1 grande en haut + 3 petites en grille (façon Yango) */
+.acc-banniere{border-radius:14px;overflow:hidden;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.08);transition:transform .12s;}
+.acc-banniere:active{transform:scale(.98);}
+.acc-banniere img{width:100%;height:100%;object-fit:cover;display:block;}
+
+/* la grande bannière en haut, pleine largeur */
+.acc-banniere-grande{margin-bottom:12px;}
+.acc-banniere-grande img{width:100%;height:auto;}
+
+/* les petites en grille de 2 colonnes */
+.acc-bannieres-grille{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.acc-banniere-petite{aspect-ratio:16/10;}
+/* la 3e petite (seule sur la dernière ligne) prend toute la largeur */
+.acc-bannieres-grille .acc-banniere-petite:nth-child(3){grid-column:1 / -1;aspect-ratio:auto;}
+.acc-bannieres-grille .acc-banniere-petite:nth-child(3) img{height:auto;}
+
+/* MODE STORY (plein écran façon Instagram) */
+.story-overlay{position:fixed;inset:0;z-index:2000;background:#000;display:flex;flex-direction:column;}
+.story-barres{display:flex;gap:4px;padding:10px 12px 6px;}
+.story-barre{flex:1;height:3px;background:rgba(255,255,255,.3);border-radius:3px;overflow:hidden;}
+.story-barre-rempli{height:100%;background:#fff;transition:width .2s;}
+.story-fermer{position:absolute;top:34px;right:14px;z-index:10;background:rgba(0,0,0,.4);border:none;color:#fff;font-size:18px;width:34px;height:34px;border-radius:50%;cursor:pointer;}
+.story-tap{position:absolute;top:0;bottom:0;width:35%;z-index:5;}
+.story-tap-gauche{left:0;}
+.story-tap-droite{right:0;}
+.story-contenu{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;}
+.story-img{width:100%;max-width:560px;height:auto;border-radius:14px;}
+.story-texte-zone{margin-top:20px;max-width:560px;width:100%;text-align:center;}
+.story-titre{color:#fff;font-size:22px;font-weight:800;margin-bottom:10px;}
+.story-texte{color:rgba(255,255,255,.85);font-size:14px;line-height:1.6;}
+.story-btn{display:inline-block;margin-top:18px;background:#FECB00;color:#002664;font-weight:800;font-size:15px;padding:13px 26px;border-radius:12px;text-decoration:none;position:relative;z-index:10;}
+
+/* ===== À AJOUTER À LA FIN DE TON App.css PASSAGER (recherche d'adresse) ===== */
+
+/* champ de saisie dans les "field" départ/destination */
+.field-input{
+  width:100%;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-size:15px;
+  color:#0d1117;
+  padding:2px 0;
+  font-family:inherit;
+}
+.field-input::placeholder{color:#9ca3af;}
+
+/* liste de suggestions */
+.suggestions{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  margin:-4px 0 10px;
+  overflow:hidden;
+  box-shadow:0 4px 14px rgba(0,0,0,.08);
+}
+.sugg-item{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:11px 14px;
+  cursor:pointer;
+  border-bottom:1px solid #f1f1f1;
+}
+.sugg-item:last-child{border-bottom:none;}
+.sugg-item:active{background:#f3f4f6;}
+.sugg-pin{font-size:16px;flex-shrink:0;}
+.sugg-principal{font-size:14px;font-weight:700;color:#0d1117;}
+.sugg-secondaire{font-size:12px;color:#6b7280;}
+.sugg-info{padding:11px 14px;font-size:13px;color:#9ca3af;}

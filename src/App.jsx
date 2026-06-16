@@ -7,15 +7,68 @@ import "./App.css";
 
 const NDJAMENA = [12.1348, 15.0557];
 const VITESSE_MOY = 22;
+const URL_CHAUFFEUR = "https://ndjam-ride-chauffeur.vercel.app";
 
-// 4 catégories avec prix au km (base) pour N'Djamena.
-// Pour remplacer l'emoji par une vraie image plus tard :
-// mets ton image dans /public et remplace "ic" par <img src="/moto.png" .../> dans le rendu.
 const CATEGORIES = [
   { id: "moto",        nom: "Moto",     ic: "🛵", prixKm: 400,  minimum: 500 },
   { id: "eco",         nom: "Éco",      ic: "🚗", prixKm: 550,  minimum: 700 },
   { id: "confort",     nom: "Confort",  ic: "🚙", prixKm: 700,  minimum: 900 },
   { id: "confortplus", nom: "Confort+", ic: "🚘", prixKm: 1400, minimum: 1500 },
+];
+
+// Bannières en mode story multi-pages.
+// "vignette" = image affichée sur l'accueil. "pages" = liste d'images plein écran (story).
+// type "chauffeur" affiche un bouton vers l'app chauffeur sur la dernière page.
+// Tu peux mettre 1, 2, 3 pages ou plus par bannière : le code s'adapte.
+const BANNIERES = [
+  {
+    vignette: "/story1-1.png",
+    type: "chauffeur",
+    pages: [
+      { img: "/story1-1.png", titre: "Devenez chauffeur Mira Express",
+        texte: "Roulez à votre rythme et gagnez un revenu avec Mira Express." },
+      { img: "/story1-2.png", titre: "Vos avantages",
+        texte: "Travaillez quand vous voulez, recevez des courses chaque jour et soyez payé pour vos trajets." },
+      { img: "/story1-3.png", titre: "Rejoignez-nous",
+        texte: "Inscrivez-vous en quelques minutes. Votre identité est vérifiée pour la sécurité de tous." },
+    ],
+  },
+  {
+    vignette: "/story2-1.png",
+    type: "info",
+    pages: [
+      { img: "/story2-1.png", titre: "Voyagez en toute sécurité",
+        texte: "Votre sécurité est notre priorité à chaque trajet." },
+      { img: "/story2-2.png", titre: "Chauffeurs vérifiés",
+        texte: "Chaque chauffeur fournit une pièce d'identité et une photo, vérifiées avant son activation." },
+      { img: "/story2-3.png", titre: "Course protégée",
+        texte: "Un code à 4 chiffres démarre la course, et votre trajet est suivi par GPS en temps réel." },
+    ],
+  },
+  {
+    vignette: "/story3-1.png",
+    type: "info",
+    pages: [
+      { img: "/story3-1.png", titre: "Comment ça marche ?",
+        texte: "Commander une course est simple et rapide." },
+      { img: "/story3-2.png", titre: "1. Choisissez",
+        texte: "Indiquez votre destination directement sur la carte." },
+      { img: "/story3-3.png", titre: "2. Commandez et voyagez",
+        texte: "Obtenez le prix à l'avance, puis voyagez avec un chauffeur vérifié." },
+    ],
+  },
+  {
+    vignette: "/story4-1.png",
+    type: "info",
+    pages: [
+      { img: "/story4-1.png", titre: "Mira Express évolue",
+        texte: "Mira Express, ce n'est pas que le transport de personnes." },
+      { img: "/story4-2.png", titre: "Bientôt : livraison de colis",
+        texte: "Faites livrer vos colis partout en ville, rapidement et en toute sécurité." },
+      { img: "/story4-3.png", titre: "Plus de services",
+        texte: "Mira Express grandit pour vous simplifier la vie au quotidien." },
+    ],
+  },
 ];
 
 const PAIEMENTS = [
@@ -39,9 +92,8 @@ const TAGS_NOTE = [
 ];
 
 const POSITIONS = { plein: 0, moyen: 45, petit: 72 };
-const SUPPLEMENT_POINTE = 1.2; // +20%
+const SUPPLEMENT_POINTE = 1.2;
 
-// Heure de pointe : 7h-9h et 17h-19h
 function estHeurePointe() {
   const h = new Date().getHours();
   return (h >= 7 && h < 9) || (h >= 17 && h < 19);
@@ -55,7 +107,6 @@ function distanceKm(a, b) {
 }
 function arrondir(p) { return Math.round(p / 50) * 50; }
 
-// Calcule le prix d'une catégorie pour une distance donnée
 function prixCategorie(cat, km, pointe) {
   let p = Math.max(cat.prixKm * km, cat.minimum);
   if (pointe) p = p * SUPPLEMENT_POINTE;
@@ -124,8 +175,8 @@ function Accueil() {
     <div className="accueil">
       <div className="accueil-logo">
         <div id="logo-badge" style={{ width: 60, height: 60, borderRadius: 16 }}></div>
-        <h1>NDjam<span>Ride</span></h1>
-        <p>Votre course à N'Djamena</p>
+        <h1>Mira<span>Express</span></h1>
+        <p>Votre trajet, notre priorité</p>
       </div>
       <div className="accueil-carte">
         <div className="accueil-tabs">
@@ -156,17 +207,195 @@ function Accueil() {
   );
 }
 
+/* ===================== ÉCRAN DE CHOIX (Me déplacer / Colis) ===================== */
+function EcranChoix({ onChoix, onDeconnexion }) {
+  return (
+    <div className="choix-wrap">
+      <div className="choix-header">
+        <div id="logo-badge" style={{ width: 48, height: 48, borderRadius: 13 }}></div>
+        <h1>Mira<span>Express</span></h1>
+        <button onClick={onDeconnexion} className="choix-deco">Déconnexion</button>
+      </div>
+      <div className="choix-contenu">
+        <h2 className="choix-titre">Que souhaitez-vous faire ?</h2>
+        <p className="choix-sous">Choisissez le type de service</p>
+
+        <div className="choix-carte" onClick={() => onChoix("course")}>
+          <div className="choix-ic">🧍</div>
+          <div>
+            <div className="choix-nom">Me déplacer</div>
+            <div className="choix-desc">Commander une course pour vous déplacer en ville</div>
+          </div>
+          <div className="choix-fleche">›</div>
+        </div>
+
+        <div className="choix-carte" onClick={() => onChoix("colis")}>
+          <div className="choix-ic">📦</div>
+          <div>
+            <div className="choix-nom">Envoyer un colis</div>
+            <div className="choix-desc">Faire livrer un colis d'un point à un autre</div>
+          </div>
+          <div className="choix-fleche">›</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===================== ÉCRAN COLIS (bientôt disponible) ===================== */
+function EcranColis({ onRetour }) {
+  return (
+    <div className="choix-wrap">
+      <div className="choix-header">
+        <div id="logo-badge" style={{ width: 48, height: 48, borderRadius: 13 }}></div>
+        <h1>Mira<span>Express</span></h1>
+      </div>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+        <div style={{ background: "#fff", borderRadius: "18px", padding: "34px 28px", maxWidth: "360px", width: "100%", textAlign: "center", boxShadow: "0 8px 30px rgba(0,0,0,.1)" }}>
+          <div style={{ fontSize: "56px", marginBottom: "12px" }}>📦</div>
+          <h2 style={{ color: "#002664", marginBottom: "12px" }}>Bientôt disponible !</h2>
+          <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "22px", lineHeight: 1.6 }}>
+            L'envoi de colis arrive très prochainement sur Mira Express. Vous pourrez bientôt faire livrer vos colis partout en ville, rapidement et en toute sécurité. Merci de votre patience !
+          </p>
+          <button onClick={onRetour}
+            style={{ width: "100%", border: "none", borderRadius: "11px", background: "#002664", color: "#fff", fontWeight: 700, padding: "13px", cursor: "pointer", fontSize: "15px" }}>
+            Retour
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===================== STORY VIEWER (multi-pages façon Instagram) ===================== */
+function StoryViewer({ banIndex, setBanIndex, onFermer }) {
+  const [page, setPage] = useState(0);
+  const banniere = BANNIERES[banIndex];
+  const pages = banniere.pages;
+  const pageActuelle = pages[page];
+  const estDernierePage = page === pages.length - 1;
+
+  // quand on change de bannière, on repart à la page 0
+  useEffect(() => { setPage(0); }, [banIndex]);
+
+  function suivant() {
+    if (page < pages.length - 1) {
+      setPage(page + 1);
+    } else if (banIndex < BANNIERES.length - 1) {
+      setBanIndex(banIndex + 1); // bannière suivante (page remise à 0 par l'effet)
+    } else {
+      onFermer();
+    }
+  }
+  function precedent() {
+    if (page > 0) {
+      setPage(page - 1);
+    } else if (banIndex > 0) {
+      setBanIndex(banIndex - 1);
+    }
+  }
+
+  return (
+    <div className="story-overlay">
+      {/* barres de progression : une par page de la bannière courante */}
+      <div className="story-barres">
+        {pages.map((_, i) => (
+          <div key={i} className="story-barre">
+            <div className="story-barre-rempli" style={{ width: i <= page ? "100%" : "0%" }}></div>
+          </div>
+        ))}
+      </div>
+
+      <button className="story-fermer" onClick={onFermer}>✕</button>
+
+      {/* zones de tap gauche / droite */}
+      <div className="story-tap story-tap-gauche" onClick={precedent}></div>
+      <div className="story-tap story-tap-droite" onClick={suivant}></div>
+
+      <div className="story-contenu">
+        <img src={pageActuelle.img} alt={pageActuelle.titre} className="story-img"
+          onError={(e) => { e.currentTarget.style.opacity = "0.15"; }} />
+        <div className="story-texte-zone">
+          <div className="story-titre">{pageActuelle.titre}</div>
+          <div className="story-texte">{pageActuelle.texte}</div>
+          {banniere.type === "chauffeur" && estDernierePage && (
+            <a href={URL_CHAUFFEUR} target="_blank" rel="noopener noreferrer" className="story-btn">
+              Devenir chauffeur →
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===================== ÉCRAN ACCUEIL COURSE (voiture + bannières) ===================== */
+function AccueilCourse({ onCommander, onRetour, onOuvrirStory }) {
+  return (
+    <div className="acc-course-wrap">
+      <div className="choix-header">
+        <div id="logo-badge" style={{ width: 48, height: 48, borderRadius: 13 }}></div>
+        <h1>Mira<span>Express</span></h1>
+        <button onClick={onRetour} className="choix-deco">← Accueil</button>
+      </div>
+
+      <div className="acc-course-contenu">
+        <div className="acc-voiture-zone">
+          <img src="/voiture-accueil.png" alt="Mira Express" className="acc-voiture-img"
+            onError={(e) => { e.currentTarget.style.display = "none"; }} />
+          <div className="acc-voiture-txt">Mira Express · Votre course en ville</div>
+        </div>
+
+        <div className="acc-ou" onClick={onCommander}>
+          <div className="acc-ou-ic">🔍</div>
+          <div className="acc-ou-txt">Où allons-nous ?</div>
+          <div className="acc-ou-fleche">›</div>
+        </div>
+
+        <button className="acc-commander-btn" onClick={onCommander}>
+          Commander une course
+        </button>
+
+        {/* Bannières cliquables : 1 grande en haut + 3 petites en grille (façon Yango) */}
+        <div className="acc-banniere acc-banniere-grande" onClick={() => onOuvrirStory(0)}>
+          <img src={BANNIERES[0].vignette} alt="Bannière"
+            onError={(e) => { e.currentTarget.parentElement.style.display = "none"; }} />
+        </div>
+        <div className="acc-bannieres-grille">
+          {BANNIERES.slice(1).map((b, i) => (
+            <div key={i + 1} className="acc-banniere acc-banniere-petite" onClick={() => onOuvrirStory(i + 1)}>
+              <img src={b.vignette} alt="Bannière"
+                onError={(e) => { e.currentTarget.parentElement.style.display = "none"; }} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ===================== APP PRINCIPALE ===================== */
 export default function Passager() {
   const [session, setSession] = useState(null);
   const [authPrete, setAuthPrete] = useState(false);
+  const [service, setService] = useState(null);
+  const [vueCommande, setVueCommande] = useState(false);
+  const [storyIndex, setStoryIndex] = useState(null); // null = fermé
 
   const [champActif, setChampActif] = useState("depart");
   const [depart, setDepart] = useState(null);
   const [dest, setDest] = useState(null);
-  const [categorie, setCategorie] = useState("eco"); // id de la catégorie choisie
+  const [nomDepart, setNomDepart] = useState(null);
+  const [nomDest, setNomDest] = useState(null);
+  const [texteDepart, setTexteDepart] = useState("");
+  const [texteDest, setTexteDest] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [champRecherche, setChampRecherche] = useState(null); // "depart" | "dest" | null
+  const [rechercheEnCours, setRechercheEnCours] = useState(false);
+  const timerRecherche = useRef(null);
+  const [categorie, setCategorie] = useState("eco");
   const [paiement, setPaiement] = useState("airtel");
-  const [calcul, setCalcul] = useState(null);  // { km, min, pointe }
+  const [calcul, setCalcul] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [courseId, setCourseId] = useState(null);
   const [erreur, setErreur] = useState(null);
@@ -195,17 +424,91 @@ export default function Passager() {
 
   async function deconnexion() {
     await supabase.auth.signOut();
+    setService(null);
+    setVueCommande(false);
     reinitialiser();
+  }
+
+  // Convertit des coordonnées en nom de lieu lisible (rue ou quartier).
+  // Utilise Nominatim (OpenStreetMap), gratuit. Si échec -> renvoie null (on garde les coordonnées).
+  async function nomDuLieu(lat, lng) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1&accept-language=fr`;
+      const rep = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!rep.ok) return null;
+      const data = await rep.json();
+      const a = data.address || {};
+      // priorité : rue, puis quartier, puis lieu connu, puis ville
+      const partie =
+        a.road || a.pedestrian || a.neighbourhood || a.suburb ||
+        a.quarter || a.city_district || a.hamlet || a.village || a.town || a.city || null;
+      if (partie) return partie;
+      if (data.display_name) return data.display_name.split(",")[0];
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 
   function poserPoint(lat, lng) {
     if (confirm) return;
     if (champActif === "depart") {
       setDepart([lat, lng]);
+      setNomDepart("…"); // indicateur de chargement
+      nomDuLieu(lat, lng).then((nom) => { setNomDepart(nom); if (nom) setTexteDepart(nom); });
       if (!dest) setChampActif("dest");
     } else {
       setDest([lat, lng]);
+      setNomDest("…");
+      nomDuLieu(lat, lng).then((nom) => { setNomDest(nom); if (nom) setTexteDest(nom); });
     }
+    setSuggestions([]);
+    setChampRecherche(null);
+  }
+
+  // Recherche de lieux par texte (Nominatim, limité à N'Djamena / Tchad)
+  async function chercherLieux(q) {
+    if (!q || q.trim().length < 3) { setSuggestions([]); setRechercheEnCours(false); return; }
+    setRechercheEnCours(true);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q + ", N'Djamena, Tchad")}&limit=6&addressdetails=1&accept-language=fr`;
+      const rep = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!rep.ok) { setSuggestions([]); setRechercheEnCours(false); return; }
+      const data = await rep.json();
+      const liste = (data || []).map((item) => {
+        const a = item.address || {};
+        const principal = a.road || a.pedestrian || a.neighbourhood || a.suburb || a.quarter || item.name || (item.display_name || "").split(",")[0];
+        const secondaire = a.suburb || a.city_district || a.city || a.town || "N'Djamena";
+        return { principal, secondaire, lat: parseFloat(item.lat), lng: parseFloat(item.lon) };
+      });
+      setSuggestions(liste);
+    } catch (e) {
+      setSuggestions([]);
+    }
+    setRechercheEnCours(false);
+  }
+
+  // Saisie dans un champ texte (avec petit délai pour ne pas spammer Nominatim)
+  function onSaisie(champ, valeur) {
+    if (champ === "depart") setTexteDepart(valeur);
+    else setTexteDest(valeur);
+    setChampRecherche(champ);
+    if (timerRecherche.current) clearTimeout(timerRecherche.current);
+    timerRecherche.current = setTimeout(() => chercherLieux(valeur), 450);
+  }
+
+  // L'utilisateur choisit une suggestion
+  function choisirSuggestion(s) {
+    const point = [s.lat, s.lng];
+    const nomComplet = s.principal;
+    if (champRecherche === "depart") {
+      setDepart(point); setNomDepart(nomComplet); setTexteDepart(nomComplet);
+      if (!dest) setChampActif("dest");
+    } else {
+      setDest(point); setNomDest(nomComplet); setTexteDest(nomComplet);
+    }
+    setSuggestions([]);
+    setChampRecherche(null);
   }
 
   useEffect(() => {
@@ -261,7 +564,7 @@ export default function Passager() {
     const nouvelleCourse = {
       depart_lat: depart[0], depart_lng: depart[1],
       dest_lat: dest[0], dest_lng: dest[1],
-      classe: categorie, // identifiant : moto / eco / confort / confortplus
+      classe: categorie,
       prix_fcfa: prixActuel,
       distance_km: parseFloat(calcul.km.toFixed(1)),
       duree_min: Math.round(calcul.min),
@@ -341,7 +644,8 @@ export default function Passager() {
     setConfirm(null); setCourseId(null); setPosChauffeur(null); setStatut(null);
     setShowMotifs(false); setNoteChoisie(0); setTagsChoisis([]);
     setChatOuvert(false); setMessages([]); setNouveauMsg("");
-    setDepart(null); setDest(null); setCalcul(null); setChampActif("depart");
+    setDepart(null); setDest(null); setNomDepart(null); setNomDest(null); setCalcul(null); setChampActif("depart");
+    setTexteDepart(""); setTexteDest(""); setSuggestions([]); setChampRecherche(null);
     allerVers("moyen");
   }
 
@@ -352,13 +656,36 @@ export default function Passager() {
     return <div id="app"><Accueil /></div>;
   }
 
+  if (!service) {
+    return <div id="app"><EcranChoix onChoix={(s) => { setService(s); setVueCommande(false); }} onDeconnexion={deconnexion} /></div>;
+  }
+
+  if (service === "colis") {
+    return <div id="app"><EcranColis onRetour={() => setService(null)} /></div>;
+  }
+
+  if (service === "course" && !vueCommande) {
+    return (
+      <div id="app">
+        <AccueilCourse
+          onCommander={() => setVueCommande(true)}
+          onRetour={() => { reinitialiser(); setService(null); }}
+          onOuvrirStory={(i) => setStoryIndex(i)}
+        />
+        {storyIndex !== null && (
+          <StoryViewer banIndex={storyIndex} setBanIndex={setStoryIndex} onFermer={() => setStoryIndex(null)} />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div id="app">
       <div id="header">
         <div id="logo-badge"></div>
-        <h1>NDjam<span> Ride</span><small>Votre course à N'Djamena</small></h1>
-        <button onClick={deconnexion} style={{ marginLeft: "auto", background: "rgba(255,255,255,.15)", border: "none", color: "#fff", padding: "7px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}>
-          Déconnexion
+        <h1>Mira<span> Express</span><small>Votre trajet, notre priorité</small></h1>
+        <button onClick={() => { reinitialiser(); setVueCommande(false); }} style={{ marginLeft: "auto", background: "rgba(255,255,255,.15)", border: "none", color: "#fff", padding: "7px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}>
+          ← Retour
         </button>
       </div>
 
@@ -391,24 +718,71 @@ export default function Passager() {
           </div>
 
           <div className="panel-contenu">
-            <div className={"field" + (champActif === "depart" ? " active" : "")} onClick={() => setChampActif("depart")}>
+            <div className={"field" + (champActif === "depart" ? " active" : "")}>
               <div className="dot depart"></div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div className="label">Départ</div>
-                <div className={"value" + (depart ? "" : " empty")}>
-                  {depart ? `${depart[0].toFixed(4)}, ${depart[1].toFixed(4)}` : "Pointez votre position"}
-                </div>
+                <input
+                  className="field-input"
+                  type="text"
+                  value={texteDepart}
+                  placeholder="Tapez un lieu ou touchez la carte"
+                  onFocus={() => { setChampActif("depart"); setChampRecherche("depart"); }}
+                  onChange={(e) => onSaisie("depart", e.target.value)}
+                />
               </div>
             </div>
-            <div className={"field" + (champActif === "dest" ? " active" : "")} onClick={() => setChampActif("dest")}>
+
+            {champRecherche === "depart" && (suggestions.length > 0 || rechercheEnCours) && (
+              <div className="suggestions">
+                {rechercheEnCours && <div className="sugg-info">Recherche…</div>}
+                {suggestions.map((s, i) => (
+                  <div key={i} className="sugg-item" onClick={() => choisirSuggestion(s)}>
+                    <span className="sugg-pin">📍</span>
+                    <div>
+                      <div className="sugg-principal">{s.principal}</div>
+                      <div className="sugg-secondaire">{s.secondaire}</div>
+                    </div>
+                  </div>
+                ))}
+                {!rechercheEnCours && suggestions.length === 0 && (
+                  <div className="sugg-info">Aucun lieu trouvé — touchez la carte pour placer le point.</div>
+                )}
+              </div>
+            )}
+
+            <div className={"field" + (champActif === "dest" ? " active" : "")}>
               <div className="dot dest"></div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div className="label">Destination</div>
-                <div className={"value" + (dest ? "" : " empty")}>
-                  {dest ? `${dest[0].toFixed(4)}, ${dest[1].toFixed(4)}` : "Où allez-vous ?"}
-                </div>
+                <input
+                  className="field-input"
+                  type="text"
+                  value={texteDest}
+                  placeholder="Où allez-vous ?"
+                  onFocus={() => { setChampActif("dest"); setChampRecherche("dest"); }}
+                  onChange={(e) => onSaisie("dest", e.target.value)}
+                />
               </div>
             </div>
+
+            {champRecherche === "dest" && (suggestions.length > 0 || rechercheEnCours) && (
+              <div className="suggestions">
+                {rechercheEnCours && <div className="sugg-info">Recherche…</div>}
+                {suggestions.map((s, i) => (
+                  <div key={i} className="sugg-item" onClick={() => choisirSuggestion(s)}>
+                    <span className="sugg-pin">📍</span>
+                    <div>
+                      <div className="sugg-principal">{s.principal}</div>
+                      <div className="sugg-secondaire">{s.secondaire}</div>
+                    </div>
+                  </div>
+                ))}
+                {!rechercheEnCours && suggestions.length === 0 && (
+                  <div className="sugg-info">Aucun lieu trouvé — touchez la carte pour placer le point.</div>
+                )}
+              </div>
+            )}
 
             {calcul && (
               <div id="estimate" className="show">
