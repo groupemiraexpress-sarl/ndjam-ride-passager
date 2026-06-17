@@ -123,8 +123,17 @@ function icone(couleur) {
 function iconeVoiture() {
   return L.divIcon({
     className: "",
-    html: `<div style="background:#16a34a;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);font-size:16px;">🚗</div>`,
-    iconSize: [30, 30], iconAnchor: [15, 15],
+    html: `<div style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;">
+      <div style="background:#fff;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.35);border:2px solid #002664;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11v6a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H8v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6z" fill="#002664"/>
+          <path d="M5 11h14" stroke="#fff" stroke-width="1"/>
+          <circle cx="8" cy="14.5" r="1.3" fill="#FECB00"/>
+          <circle cx="16" cy="14.5" r="1.3" fill="#FECB00"/>
+        </svg>
+      </div>
+    </div>`,
+    iconSize: [38, 38], iconAnchor: [19, 19],
   });
 }
 
@@ -375,6 +384,16 @@ function AccueilCourse({ onCommander, onRetour, onOuvrirStory }) {
 }
 
 /* ===================== APP PRINCIPALE ===================== */
+/* Petite ligne label / valeur pour le panneau de détails */
+function DetailLigne({ label, valeur }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #e5e7eb" }}>
+      <span style={{ fontSize: "13px", color: "#6b7280" }}>{label}</span>
+      <span style={{ fontSize: "14px", fontWeight: 700, color: "#0d1117", textAlign: "right", maxWidth: "60%" }}>{valeur}</span>
+    </div>
+  );
+}
+
 export default function Passager() {
   const [session, setSession] = useState(null);
   const [authPrete, setAuthPrete] = useState(false);
@@ -402,6 +421,7 @@ export default function Passager() {
   const [posChauffeur, setPosChauffeur] = useState(null);
   const [statut, setStatut] = useState(null);
   const [showMotifs, setShowMotifs] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   const [noteChoisie, setNoteChoisie] = useState(0);
   const [tagsChoisis, setTagsChoisis] = useState([]);
   const [chatOuvert, setChatOuvert] = useState(false);
@@ -522,8 +542,26 @@ export default function Passager() {
   const catChoisie = CATEGORIES.find((c) => c.id === categorie);
   const prixActuel = calcul ? prixCategorie(catChoisie, calcul.km, calcul.pointe) : null;
 
+  // Temps d'arrivée estimé du chauffeur vers le client (avant démarrage)
+  let minutesArrivee = null;
+  if (posChauffeur && depart) {
+    const distCh = distanceKm(posChauffeur, depart) * 1.35; // facteur routes
+    minutesArrivee = Math.max(1, Math.round((distCh / VITESSE_MOY) * 60));
+  }
+
   function allerVers(nom) { setNiveau(nom); setOffset(POSITIONS[nom]); setSansAnim(false); }
-  function debutDrag(clientY) { dragRef.current = { actif: true, yDepart: clientY, offsetDepart: offset }; setSansAnim(true); }
+  function debutDrag(clientY) {
+    dragRef.current = { actif: true, yDepart: clientY, offsetDepart: offset, offsetCourant: offset };
+    setSansAnim(true);
+    function onMove(e) { pendantDrag(e.clientY); }
+    function onUp() {
+      finDrag();
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }
   function pendantDrag(clientY) {
     if (!dragRef.current.actif) return;
     const deltaPx = clientY - dragRef.current.yDepart;
@@ -531,12 +569,13 @@ export default function Passager() {
     let nouvel = dragRef.current.offsetDepart + deltaPct;
     if (nouvel < POSITIONS.plein) nouvel = POSITIONS.plein;
     if (nouvel > POSITIONS.petit) nouvel = POSITIONS.petit;
+    dragRef.current.offsetCourant = nouvel;
     setOffset(nouvel);
   }
   function finDrag() {
     if (!dragRef.current.actif) return;
     dragRef.current.actif = false;
-    const courant = offset;
+    const courant = dragRef.current.offsetCourant;
     const candidats = [["plein", POSITIONS.plein], ["moyen", POSITIONS.moyen], ["petit", POSITIONS.petit]];
     let meilleur = candidats[0], ecartMin = Infinity;
     for (const c of candidats) {
@@ -545,19 +584,6 @@ export default function Passager() {
     }
     allerVers(meilleur[0]);
   }
-  useEffect(() => {
-    function onMove(e) { pendantDrag(e.clientY); }
-    function onUp() { finDrag(); }
-    if (dragRef.current.actif) {
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-    }
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-  }, [offset]);
-
   async function commander() {
     if (!calcul) return;
     setErreur(null);
@@ -576,6 +602,7 @@ export default function Passager() {
     setCourseId(data.id);
     setStatut("recherche");
     setConfirm({ prix: prixActuel, payNom: PAIEMENTS.find((p) => p.id === paiement).nom, catNom: catChoisie.nom, code: data.code_demarrage });
+    allerVers("moyen");
   }
 
   useEffect(() => {
@@ -594,6 +621,7 @@ export default function Passager() {
             }));
           }
           if (c.chauffeur_lat && c.chauffeur_lng) setPosChauffeur([c.chauffeur_lat, c.chauffeur_lng]);
+          if (c.demarree) setConfirm((prev) => ({ ...prev, demarree: true }));
           if (c.statut === "annulee" && c.annule_par === "chauffeur") {
             setConfirm((prev) => ({ ...prev, annuleParChauffeur: true, motif: c.motif_annulation }));
           }
@@ -642,7 +670,7 @@ export default function Passager() {
   function toggleTag(id) { setTagsChoisis((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]); }
   function reinitialiser() {
     setConfirm(null); setCourseId(null); setPosChauffeur(null); setStatut(null);
-    setShowMotifs(false); setNoteChoisie(0); setTagsChoisis([]);
+    setShowMotifs(false); setShowDetails(false); setNoteChoisie(0); setTagsChoisis([]);
     setChatOuvert(false); setMessages([]); setNouveauMsg("");
     setDepart(null); setDest(null); setNomDepart(null); setNomDest(null); setCalcul(null); setChampActif("depart");
     setTexteDepart(""); setTexteDest(""); setSuggestions([]); setChampRecherche(null);
@@ -826,8 +854,14 @@ export default function Passager() {
       )}
 
       {confirm && (
-        <div id="panel">
-          <div id="panel-grip"></div>
+        <div id="panel" className={"glissable" + (sansAnim ? " sansanim" : "")} style={{ transform: `translateY(${offset}vh)` }}>
+          <div className="grip-zone"
+            onMouseDown={(e) => debutDrag(e.clientY)}
+            onTouchStart={(e) => debutDrag(e.touches[0].clientY)}
+            onTouchMove={(e) => pendantDrag(e.touches[0].clientY)}
+            onTouchEnd={finDrag}>
+            <div id="panel-grip"></div>
+          </div>
 
           {confirm.termine ? (
             <div style={{ textAlign: "center", padding: "10px 0" }}>
@@ -890,11 +924,29 @@ export default function Passager() {
 
           ) : (
             <div style={{ textAlign: "center", padding: "10px 0" }}>
-              <h2 style={{ color: "#16a34a", margin: "0 0 8px" }}>✓ Chauffeur en route !</h2>
-              <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "10px" }}>
-                {posChauffeur ? "Suivez sa position sur la carte" : "Votre chauffeur arrive bientôt"}
-              </p>
-              {confirm.code && (
+              {confirm.demarree ? (
+                <>
+                  <h2 style={{ color: "#16a34a", margin: "0 0 8px" }}>🚗 Course en cours</h2>
+                  <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "12px" }}>
+                    Vous êtes en route vers votre destination. Bon voyage !
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 style={{ color: "#16a34a", margin: "0 0 8px" }}>✓ Chauffeur en route !</h2>
+                  <p style={{ color: "#6b7280", fontSize: "13px", marginBottom: "10px" }}>
+                    {posChauffeur ? "Suivez sa position sur la carte" : "Votre chauffeur arrive bientôt"}
+                  </p>
+                  {minutesArrivee && (
+                    <div style={{ display: "inline-block", background: "#dcfce7", color: "#16a34a", fontWeight: 800, fontSize: "14px", padding: "8px 16px", borderRadius: "20px", marginBottom: "12px" }}>
+                      🚗 Arrivée dans ~{minutesArrivee} min
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Le code n'est utile que tant que la course n'a pas démarré */}
+              {confirm.code && !confirm.demarree && (
                 <div style={{ background: "#002664", borderRadius: "14px", padding: "14px", marginBottom: "12px" }}>
                   <div style={{ color: "#fff", fontSize: "12px", marginBottom: "8px" }}>
                     Communiquez ce code à votre chauffeur pour démarrer la course
@@ -908,6 +960,7 @@ export default function Passager() {
                   </div>
                 </div>
               )}
+
               <div className="car-info">
                 <div className="plate">{confirm.chauffeur.plate}</div>
                 <div>
@@ -918,6 +971,7 @@ export default function Passager() {
               <p style={{ color: "#6b7280", fontSize: "13px", margin: "8px 0" }}>
                 {confirm.catNom} · <b>{confirm.prix.toLocaleString("fr-FR")} FCFA</b> · {confirm.payNom}
               </p>
+
               <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                 {confirm.chauffeur.tel ? (
                   <a href={"tel:" + confirm.chauffeur.tel}
@@ -930,21 +984,70 @@ export default function Passager() {
                   💬 Discussion
                 </button>
               </div>
-              {!showMotifs ? (
-                <button id="close-confirm" style={{ background: "#C60C30" }} onClick={() => setShowMotifs(true)}>
-                  Annuler la course
-                </button>
-              ) : (
-                <div style={{ textAlign: "left", marginTop: "10px" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, marginBottom: "8px", textAlign: "center" }}>Pourquoi annulez-vous ?</div>
-                  {MOTIFS.map((m) => (
-                    <button key={m} className="motif-btn" onClick={() => annulerClient(m)}>{m}</button>
-                  ))}
-                  <button className="motif-retour" onClick={() => setShowMotifs(false)}>Retour</button>
-                </div>
+
+              {/* Bouton Détails (ouvre le récapitulatif complet) */}
+              <button onClick={() => setShowDetails(true)}
+                style={{ width: "100%", padding: "12px", marginBottom: "8px", borderRadius: "12px", border: "2px solid #002664", cursor: "pointer", background: "#fff", color: "#002664", fontWeight: 700, fontSize: "15px" }}>
+                📋 Détails de la course
+              </button>
+
+              {/* On ne peut annuler que tant que la course n'a pas démarré */}
+              {!confirm.demarree && (
+                !showMotifs ? (
+                  <button id="close-confirm" style={{ background: "#C60C30" }} onClick={() => setShowMotifs(true)}>
+                    Annuler la course
+                  </button>
+                ) : (
+                  <div style={{ textAlign: "left", marginTop: "10px" }}>
+                    <div style={{ fontSize: "13px", fontWeight: 700, marginBottom: "8px", textAlign: "center" }}>Pourquoi annulez-vous ?</div>
+                    {MOTIFS.map((m) => (
+                      <button key={m} className="motif-btn" onClick={() => annulerClient(m)}>{m}</button>
+                    ))}
+                    <button className="motif-retour" onClick={() => setShowMotifs(false)}>Retour</button>
+                  </div>
+                )
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* PANNEAU DÉTAILS DE LA COURSE */}
+      {showDetails && confirm && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "flex-end" }}
+          onClick={() => setShowDetails(false)}>
+          <div style={{ background: "#fff", width: "100%", borderRadius: "20px 20px 0 0", padding: "20px", maxHeight: "80%", overflowY: "auto" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "14px" }}>
+              <div style={{ width: "40px", height: "4px", borderRadius: "4px", background: "#d1d5db" }}></div>
+            </div>
+            <h2 style={{ color: "#0d1117", marginBottom: "4px", textAlign: "center" }}>Détails de la course</h2>
+            <p style={{ color: confirm.demarree ? "#16a34a" : "#FECB00", fontSize: "13px", fontWeight: 700, textAlign: "center", marginBottom: "18px" }}>
+              {confirm.demarree ? "🚗 Course en cours" : "⏳ En attente de démarrage"}
+            </p>
+
+            <div style={{ background: "#f3f4f6", borderRadius: "14px", padding: "16px", marginBottom: "12px" }}>
+              <DetailLigne label="Chauffeur" valeur={confirm.chauffeur?.nom || "—"} />
+              <DetailLigne label="Véhicule" valeur={confirm.chauffeur?.car || "—"} />
+              <DetailLigne label="Plaque" valeur={confirm.chauffeur?.plate || "—"} />
+              {confirm.chauffeur?.tel && <DetailLigne label="Téléphone" valeur={confirm.chauffeur.tel} />}
+            </div>
+
+            <div style={{ background: "#f3f4f6", borderRadius: "14px", padding: "16px", marginBottom: "12px" }}>
+              <DetailLigne label="Catégorie" valeur={confirm.catNom} />
+              <DetailLigne label="Prix" valeur={confirm.prix.toLocaleString("fr-FR") + " FCFA"} />
+              <DetailLigne label="Paiement" valeur={confirm.payNom} />
+              {nomDepart && nomDepart !== "…" && <DetailLigne label="Départ" valeur={nomDepart} />}
+              {nomDest && nomDest !== "…" && <DetailLigne label="Destination" valeur={nomDest} />}
+              {calcul && <DetailLigne label="Distance" valeur={calcul.km.toFixed(1) + " km"} />}
+              {calcul && <DetailLigne label="Durée estimée" valeur={"~" + Math.round(calcul.min) + " min"} />}
+            </div>
+
+            <button onClick={() => setShowDetails(false)}
+              style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "none", cursor: "pointer", background: "#002664", color: "#fff", fontWeight: 700, fontSize: "15px" }}>
+              Fermer
+            </button>
+          </div>
         </div>
       )}
 

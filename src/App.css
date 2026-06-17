@@ -361,3 +361,21 @@ body{
 .sugg-principal{font-size:14px;font-weight:700;color:#0d1117;}
 .sugg-secondaire{font-size:12px;color:#6b7280;}
 .sugg-info{padding:11px 14px;font-size:13px;color:#9ca3af;}
+
+/* ===== À AJOUTER À LA FIN DE TON App.css PASSAGER (panneau glissant confirmé) ===== */
+
+/* Le panneau confirmé peut maintenant glisser comme celui de commande.
+   On limite sa hauteur et on rend son contenu défilable pour ne pas déborder. */
+#panel.glissable{
+  max-height:88vh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+#panel.glissable .grip-zone{
+  flex-shrink:0;
+}
+/* tout le contenu après la poignée défile à l'intérieur du panneau */
+#panel.glissable > *:not(.grip-zone){
+  overflow-y:auto;
+}
