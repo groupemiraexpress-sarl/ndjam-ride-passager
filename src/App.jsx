@@ -17,9 +17,6 @@ const CATEGORIES = [
 ];
 
 // Bannières en mode story multi-pages.
-// "vignette" = image affichée sur l'accueil. "pages" = liste d'images plein écran (story).
-// type "chauffeur" affiche un bouton vers l'app chauffeur sur la dernière page.
-// Tu peux mettre 1, 2, 3 pages ou plus par bannière : le code s'adapte.
 const BANNIERES = [
   {
     vignette: "/story1-1.png",
@@ -105,6 +102,25 @@ function distanceKm(a, b) {
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
+
+// Calcule le vrai trajet par les routes via OSRM (gratuit, OpenStreetMap).
+// Renvoie { points: [[lat,lng],...], distanceKm: nombre } ou null si échec.
+async function calculerRoute(depart, dest) {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${depart[1]},${depart[0]};${dest[1]},${dest[0]}?overview=full&geometries=geojson`;
+    const rep = await fetch(url);
+    if (!rep.ok) return null;
+    const data = await rep.json();
+    if (!data.routes || data.routes.length === 0) return null;
+    const route = data.routes[0];
+    const points = route.geometry.coordinates.map((c) => [c[1], c[0]]);
+    const distance = route.distance / 1000;
+    return { points, distanceKm: distance };
+  } catch (e) {
+    return null;
+  }
+}
+
 function arrondir(p) { return Math.round(p / 50) * 50; }
 
 function prixCategorie(cat, km, pointe) {
@@ -284,14 +300,13 @@ function StoryViewer({ banIndex, setBanIndex, onFermer }) {
   const pageActuelle = pages[page];
   const estDernierePage = page === pages.length - 1;
 
-  // quand on change de bannière, on repart à la page 0
   useEffect(() => { setPage(0); }, [banIndex]);
 
   function suivant() {
     if (page < pages.length - 1) {
       setPage(page + 1);
     } else if (banIndex < BANNIERES.length - 1) {
-      setBanIndex(banIndex + 1); // bannière suivante (page remise à 0 par l'effet)
+      setBanIndex(banIndex + 1);
     } else {
       onFermer();
     }
@@ -306,7 +321,6 @@ function StoryViewer({ banIndex, setBanIndex, onFermer }) {
 
   return (
     <div className="story-overlay">
-      {/* barres de progression : une par page de la bannière courante */}
       <div className="story-barres">
         {pages.map((_, i) => (
           <div key={i} className="story-barre">
@@ -317,7 +331,6 @@ function StoryViewer({ banIndex, setBanIndex, onFermer }) {
 
       <button className="story-fermer" onClick={onFermer}>✕</button>
 
-      {/* zones de tap gauche / droite */}
       <div className="story-tap story-tap-gauche" onClick={precedent}></div>
       <div className="story-tap story-tap-droite" onClick={suivant}></div>
 
@@ -365,7 +378,6 @@ function AccueilCourse({ onCommander, onRetour, onOuvrirStory }) {
           Commander une course
         </button>
 
-        {/* Bannières cliquables : 1 grande en haut + 3 petites en grille (façon Yango) */}
         <div className="acc-banniere acc-banniere-grande" onClick={() => onOuvrirStory(0)}>
           <img src={BANNIERES[0].vignette} alt="Bannière"
             onError={(e) => { e.currentTarget.parentElement.style.display = "none"; }} />
@@ -383,7 +395,6 @@ function AccueilCourse({ onCommander, onRetour, onOuvrirStory }) {
   );
 }
 
-/* ===================== APP PRINCIPALE ===================== */
 /* Petite ligne label / valeur pour le panneau de détails */
 function DetailLigne({ label, valeur }) {
   return (
@@ -394,12 +405,13 @@ function DetailLigne({ label, valeur }) {
   );
 }
 
+/* ===================== APP PRINCIPALE ===================== */
 export default function Passager() {
   const [session, setSession] = useState(null);
   const [authPrete, setAuthPrete] = useState(false);
   const [service, setService] = useState(null);
   const [vueCommande, setVueCommande] = useState(false);
-  const [storyIndex, setStoryIndex] = useState(null); // null = fermé
+  const [storyIndex, setStoryIndex] = useState(null);
 
   const [champActif, setChampActif] = useState("depart");
   const [depart, setDepart] = useState(null);
@@ -409,12 +421,14 @@ export default function Passager() {
   const [texteDepart, setTexteDepart] = useState("");
   const [texteDest, setTexteDest] = useState("");
   const [suggestions, setSuggestions] = useState([]);
-  const [champRecherche, setChampRecherche] = useState(null); // "depart" | "dest" | null
+  const [champRecherche, setChampRecherche] = useState(null);
   const [rechercheEnCours, setRechercheEnCours] = useState(false);
   const timerRecherche = useRef(null);
   const [categorie, setCategorie] = useState("eco");
   const [paiement, setPaiement] = useState("airtel");
   const [calcul, setCalcul] = useState(null);
+  const [routePoints, setRoutePoints] = useState(null);
+  const [routeChauffeur, setRouteChauffeur] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const [courseId, setCourseId] = useState(null);
   const [erreur, setErreur] = useState(null);
@@ -449,8 +463,6 @@ export default function Passager() {
     reinitialiser();
   }
 
-  // Convertit des coordonnées en nom de lieu lisible (rue ou quartier).
-  // Utilise Nominatim (OpenStreetMap), gratuit. Si échec -> renvoie null (on garde les coordonnées).
   async function nomDuLieu(lat, lng) {
     try {
       const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1&accept-language=fr`;
@@ -458,7 +470,6 @@ export default function Passager() {
       if (!rep.ok) return null;
       const data = await rep.json();
       const a = data.address || {};
-      // priorité : rue, puis quartier, puis lieu connu, puis ville
       const partie =
         a.road || a.pedestrian || a.neighbourhood || a.suburb ||
         a.quarter || a.city_district || a.hamlet || a.village || a.town || a.city || null;
@@ -474,7 +485,7 @@ export default function Passager() {
     if (confirm) return;
     if (champActif === "depart") {
       setDepart([lat, lng]);
-      setNomDepart("…"); // indicateur de chargement
+      setNomDepart("…");
       nomDuLieu(lat, lng).then((nom) => { setNomDepart(nom); if (nom) setTexteDepart(nom); });
       if (!dest) setChampActif("dest");
     } else {
@@ -486,7 +497,6 @@ export default function Passager() {
     setChampRecherche(null);
   }
 
-  // Recherche de lieux par texte (Nominatim, limité à N'Djamena / Tchad)
   async function chercherLieux(q) {
     if (!q || q.trim().length < 3) { setSuggestions([]); setRechercheEnCours(false); return; }
     setRechercheEnCours(true);
@@ -508,7 +518,6 @@ export default function Passager() {
     setRechercheEnCours(false);
   }
 
-  // Saisie dans un champ texte (avec petit délai pour ne pas spammer Nominatim)
   function onSaisie(champ, valeur) {
     if (champ === "depart") setTexteDepart(valeur);
     else setTexteDest(valeur);
@@ -517,7 +526,6 @@ export default function Passager() {
     timerRecherche.current = setTimeout(() => chercherLieux(valeur), 450);
   }
 
-  // L'utilisateur choisit une suggestion
   function choisirSuggestion(s) {
     const point = [s.lat, s.lng];
     const nomComplet = s.principal;
@@ -532,20 +540,39 @@ export default function Passager() {
   }
 
   useEffect(() => {
-    if (!depart || !dest) return;
-    const km = distanceKm(depart, dest) * 1.35;
-    const min = (km / VITESSE_MOY) * 60;
-    setCalcul({ km, min, pointe: estHeurePointe() });
+    if (!depart || !dest) { setRoutePoints(null); return; }
+    const kmVol = distanceKm(depart, dest) * 1.35;
+    setCalcul({ km: kmVol, min: (kmVol / VITESSE_MOY) * 60, pointe: estHeurePointe() });
     allerVers("plein");
+    let annule = false;
+    calculerRoute(depart, dest).then((res) => {
+      if (annule || !res) return;
+      setRoutePoints(res.points);
+      const min = (res.distanceKm / VITESSE_MOY) * 60;
+      setCalcul({ km: res.distanceKm, min, pointe: estHeurePointe() });
+    });
+    return () => { annule = true; };
   }, [depart, dest]);
+
+  // Trajet du chauffeur vers le point de prise en charge (comme Yango).
+  // Actif seulement tant que le chauffeur est en route (course pas encore démarrée).
+  useEffect(() => {
+    const enRoute = confirm && confirm.chauffeur && !confirm.demarree;
+    if (!enRoute || !posChauffeur || !depart) { setRouteChauffeur(null); return; }
+    let annule = false;
+    calculerRoute(posChauffeur, depart).then((res) => {
+      if (annule || !res) { setRouteChauffeur(null); return; }
+      setRouteChauffeur(res.points);
+    });
+    return () => { annule = true; };
+  }, [posChauffeur, depart, confirm]);
 
   const catChoisie = CATEGORIES.find((c) => c.id === categorie);
   const prixActuel = calcul ? prixCategorie(catChoisie, calcul.km, calcul.pointe) : null;
 
-  // Temps d'arrivée estimé du chauffeur vers le client (avant démarrage)
   let minutesArrivee = null;
   if (posChauffeur && depart) {
-    const distCh = distanceKm(posChauffeur, depart) * 1.35; // facteur routes
+    const distCh = distanceKm(posChauffeur, depart) * 1.35;
     minutesArrivee = Math.max(1, Math.round((distCh / VITESSE_MOY) * 60));
   }
 
@@ -674,6 +701,8 @@ export default function Passager() {
     setChatOuvert(false); setMessages([]); setNouveauMsg("");
     setDepart(null); setDest(null); setNomDepart(null); setNomDest(null); setCalcul(null); setChampActif("depart");
     setTexteDepart(""); setTexteDest(""); setSuggestions([]); setChampRecherche(null);
+    setRoutePoints(null);
+    setRouteChauffeur(null);
     allerVers("moyen");
   }
 
@@ -723,7 +752,31 @@ export default function Passager() {
           <GestionClic onClic={poserPoint} />
           {depart && <Marker position={depart} icon={icone("#002664")} />}
           {dest && <Marker position={dest} icon={icone("#C60C30")} />}
-          {depart && dest && <Polyline positions={[depart, dest]} pathOptions={{ color: "#FECB00", weight: 4, dashArray: "2,8" }} />}
+
+          {/* Chauffeur en route vers le client : on montre le trajet chauffeur -> départ (comme Yango) */}
+          {confirm && confirm.chauffeur && !confirm.demarree && posChauffeur && depart ? (
+            routeChauffeur ? (
+              <>
+                <Polyline positions={routeChauffeur} pathOptions={{ color: "#fff", weight: 9, opacity: 0.9 }} />
+                <Polyline positions={routeChauffeur} pathOptions={{ color: "#16a34a", weight: 5 }} />
+              </>
+            ) : (
+              <Polyline positions={[posChauffeur, depart]} pathOptions={{ color: "#16a34a", weight: 5, dashArray: "2,8" }} />
+            )
+          ) : (
+            /* Sinon : trajet de la course départ -> destination */
+            depart && dest && (
+              routePoints ? (
+                <>
+                  <Polyline positions={routePoints} pathOptions={{ color: "#fff", weight: 9, opacity: 0.9 }} />
+                  <Polyline positions={routePoints} pathOptions={{ color: "#16a34a", weight: 5 }} />
+                </>
+              ) : (
+                <Polyline positions={[depart, dest]} pathOptions={{ color: "#FECB00", weight: 4, dashArray: "2,8" }} />
+              )
+            )
+          )}
+
           {posChauffeur && <Marker position={posChauffeur} icon={iconeVoiture()} />}
           <AjusterVue points={[posChauffeur, depart, dest]} />
         </MapContainer>
@@ -945,7 +998,6 @@ export default function Passager() {
                 </>
               )}
 
-              {/* Le code n'est utile que tant que la course n'a pas démarré */}
               {confirm.code && !confirm.demarree && (
                 <div style={{ background: "#002664", borderRadius: "14px", padding: "14px", marginBottom: "12px" }}>
                   <div style={{ color: "#fff", fontSize: "12px", marginBottom: "8px" }}>
@@ -985,13 +1037,11 @@ export default function Passager() {
                 </button>
               </div>
 
-              {/* Bouton Détails (ouvre le récapitulatif complet) */}
               <button onClick={() => setShowDetails(true)}
                 style={{ width: "100%", padding: "12px", marginBottom: "8px", borderRadius: "12px", border: "2px solid #002664", cursor: "pointer", background: "#fff", color: "#002664", fontWeight: 700, fontSize: "15px" }}>
                 📋 Détails de la course
               </button>
 
-              {/* On ne peut annuler que tant que la course n'a pas démarré */}
               {!confirm.demarree && (
                 !showMotifs ? (
                   <button id="close-confirm" style={{ background: "#C60C30" }} onClick={() => setShowMotifs(true)}>
@@ -1012,7 +1062,6 @@ export default function Passager() {
         </div>
       )}
 
-      {/* PANNEAU DÉTAILS DE LA COURSE */}
       {showDetails && confirm && (
         <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "flex-end" }}
           onClick={() => setShowDetails(false)}>
