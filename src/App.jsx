@@ -146,20 +146,45 @@ function icone(couleur) {
     iconSize: [30, 40], iconAnchor: [15, 40],
   });
 }
-function iconeVoiture() {
+// Convertit un nom de couleur (texte libre du chauffeur) en code couleur.
+function couleurVers(nomCouleur) {
+  if (!nomCouleur) return "#002664";
+  const c = nomCouleur.toLowerCase().trim();
+  const table = {
+    "noir": "#1a1a1a", "noire": "#1a1a1a", "black": "#1a1a1a",
+    "blanc": "#e8e8e8", "blanche": "#e8e8e8", "white": "#e8e8e8",
+    "gris": "#7a7a7a", "grise": "#7a7a7a", "gray": "#7a7a7a", "grey": "#7a7a7a", "argent": "#b0b0b0", "argenté": "#b0b0b0",
+    "rouge": "#c0392b", "red": "#c0392b",
+    "bleu": "#2563eb", "bleue": "#2563eb", "blue": "#2563eb",
+    "vert": "#16a34a", "verte": "#16a34a", "green": "#16a34a",
+    "jaune": "#eab308", "yellow": "#eab308",
+    "orange": "#ea580c",
+    "marron": "#92400e", "brun": "#92400e", "brown": "#92400e",
+    "beige": "#d6c9a8",
+    "violet": "#7c3aed", "mauve": "#7c3aed",
+    "or": "#d4af37", "doré": "#d4af37", "dorée": "#d4af37",
+  };
+  for (const mot in table) {
+    if (c.includes(mot)) return table[mot];
+  }
+  return "#002664"; // bleu Mira par défaut
+}
+
+function iconeVoiture(couleur) {
+  const fill = couleur || "#002664";
+  // Pare-brises : clairs si voiture foncée, foncés si voiture claire
+  const vitres = "#9fc0e8";
   return L.divIcon({
     className: "",
-    html: `<div style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;">
-      <div style="background:#fff;width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.35);border:2px solid #002664;">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-          <path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11v6a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H8v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6z" fill="#002664"/>
-          <path d="M5 11h14" stroke="#fff" stroke-width="1"/>
-          <circle cx="8" cy="14.5" r="1.3" fill="#FECB00"/>
-          <circle cx="16" cy="14.5" r="1.3" fill="#FECB00"/>
-        </svg>
-      </div>
-    </div>`,
-    iconSize: [38, 38], iconAnchor: [19, 19],
+    html: `<svg width="34" height="34" viewBox="0 0 48 48">
+      <rect x="14" y="6" width="20" height="36" rx="7" fill="${fill}" stroke="#fff" stroke-width="1.5"/>
+      <rect x="16" y="13" width="16" height="9" rx="3" fill="${vitres}"/>
+      <rect x="16" y="27" width="16" height="8" rx="3" fill="${vitres}"/>
+      <rect x="17" y="23" width="14" height="4" rx="2" fill="#FECB00"/>
+      <circle cx="19" cy="9" r="1.4" fill="#fff7cc"/>
+      <circle cx="29" cy="9" r="1.4" fill="#fff7cc"/>
+    </svg>`,
+    iconSize: [34, 34], iconAnchor: [17, 17],
   });
 }
 
@@ -833,7 +858,7 @@ export default function Passager() {
             )
           )}
 
-          {posChauffeur && <Marker position={posChauffeur} icon={iconeVoiture()} />}
+          {posChauffeur && <Marker position={posChauffeur} icon={iconeVoiture(couleurVers((confirm?.chauffeur?.car || "").split("·").pop()))} />}
           <AjusterVue points={[posChauffeur, depart, dest]} />
         </MapContainer>
       </div>
