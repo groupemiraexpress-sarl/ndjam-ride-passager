@@ -91,6 +91,16 @@ const TAGS_NOTE = [
 const POSITIONS = { plein: 0, moyen: 45, petit: 72 };
 const SUPPLEMENT_POINTE = 1.2;
 
+// Lieux populaires de N'Djamena affichés sur l'accueil (comme Yango).
+// minIndicatif = temps estimé fixe (non calculé en direct).
+const LIEUX_POPULAIRES = [
+  { nom: "Aéroport de N'Djamena", quartier: "Hassan Djamous", ic: "✈️", lat: 12.1337, lng: 15.0340, minIndicatif: 14 },
+  { nom: "Grand Marché", quartier: "Centre-ville", ic: "🛍️", lat: 12.1095, lng: 15.0444, minIndicatif: 8 },
+  { nom: "Université de N'Djamena", quartier: "Toukra", ic: "🎓", lat: 12.0670, lng: 15.0490, minIndicatif: 18 },
+  { nom: "Hôpital Général", quartier: "Référence Nationale", ic: "🏥", lat: 12.1108, lng: 15.0511, minIndicatif: 10 },
+  { nom: "Marché de Dembé", quartier: "Dembé", ic: "🛒", lat: 12.0920, lng: 15.0680, minIndicatif: 12 },
+];
+
 function estHeurePointe() {
   const h = new Date().getHours();
   return (h >= 7 && h < 9) || (h >= 17 && h < 19);
@@ -352,7 +362,7 @@ function StoryViewer({ banIndex, setBanIndex, onFermer }) {
 }
 
 /* ===================== ÉCRAN ACCUEIL COURSE (voiture + bannières) ===================== */
-function AccueilCourse({ onCommander, onRetour, onOuvrirStory }) {
+function AccueilCourse({ onCommander, onRetour, onOuvrirStory, onChoisirLieu }) {
   return (
     <div className="acc-course-wrap">
       <div className="choix-header">
@@ -372,6 +382,20 @@ function AccueilCourse({ onCommander, onRetour, onOuvrirStory }) {
           <div className="acc-ou-ic">🔍</div>
           <div className="acc-ou-txt">Où allons-nous ?</div>
           <div className="acc-ou-fleche">›</div>
+        </div>
+
+        {/* Liste de lieux populaires (comme Yango) */}
+        <div className="acc-lieux">
+          {LIEUX_POPULAIRES.map((lieu, i) => (
+            <div key={i} className="acc-lieu" onClick={() => onChoisirLieu(lieu)}>
+              <div className="acc-lieu-ic">{lieu.ic}</div>
+              <div className="acc-lieu-txt">
+                <div className="acc-lieu-nom">{lieu.nom}</div>
+                <div className="acc-lieu-quartier">{lieu.quartier}</div>
+              </div>
+              <div className="acc-lieu-min">{lieu.minIndicatif} min</div>
+            </div>
+          ))}
         </div>
 
         <button className="acc-commander-btn" onClick={onCommander}>
@@ -496,6 +520,31 @@ export default function Passager() {
     setSuggestions([]);
     setChampRecherche(null);
   }
+
+  // Détecte la position actuelle de l'utilisateur et la place comme départ.
+  function utiliserMaPosition() {
+    if (!navigator.geolocation) { setTexteDepart(""); return; }
+    setTexteDepart("Localisation…");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        setDepart([lat, lng]);
+        setNomDepart("Position actuelle");
+        setTexteDepart("Position actuelle");
+        if (!dest) setChampActif("dest");
+      },
+      () => { setTexteDepart(""); },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+    );
+  }
+
+  // Au premier affichage de l'écran de commande, on tente la position actuelle.
+  useEffect(() => {
+    if (vueCommande && !depart && !confirm) {
+      utiliserMaPosition();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vueCommande]);
 
   async function chercherLieux(q) {
     if (!q || q.trim().length < 3) { setSuggestions([]); setRechercheEnCours(false); return; }
@@ -728,6 +777,13 @@ export default function Passager() {
           onCommander={() => setVueCommande(true)}
           onRetour={() => { reinitialiser(); setService(null); }}
           onOuvrirStory={(i) => setStoryIndex(i)}
+          onChoisirLieu={(lieu) => {
+            setDest([lieu.lat, lieu.lng]);
+            setNomDest(lieu.nom);
+            setTexteDest(lieu.nom);
+            setChampActif("depart");
+            setVueCommande(true);
+          }}
         />
         {storyIndex !== null && (
           <StoryViewer banIndex={storyIndex} setBanIndex={setStoryIndex} onFermer={() => setStoryIndex(null)} />
@@ -812,6 +868,9 @@ export default function Passager() {
                   onChange={(e) => onSaisie("depart", e.target.value)}
                 />
               </div>
+              <button className="btn-ma-position" onClick={utiliserMaPosition} title="Utiliser ma position actuelle">
+                📍
+              </button>
             </div>
 
             {champRecherche === "depart" && (suggestions.length > 0 || rechercheEnCours) && (
