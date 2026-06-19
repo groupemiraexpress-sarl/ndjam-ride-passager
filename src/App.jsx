@@ -194,9 +194,17 @@ function GestionClic({ onClic }) {
 }
 function AjusterVue({ points }) {
   const map = useMap();
+  const dernierNombre = useRef(0);
   useEffect(() => {
     const valides = points.filter(Boolean);
-    if (valides.length >= 2) map.fitBounds(valides, { padding: [60, 60] });
+    // On ne recadre QUE si le nombre de points a changé (nouveau point posé/livreur arrivé),
+    // pas à chaque mise à jour GPS. Ainsi l'utilisateur garde son zoom librement.
+    if (valides.length >= 2 && valides.length !== dernierNombre.current) {
+      map.fitBounds(valides, { padding: [60, 60] });
+      dernierNombre.current = valides.length;
+    } else if (valides.length < 2) {
+      dernierNombre.current = valides.length;
+    }
   }, [points, map]);
   return null;
 }
@@ -303,24 +311,421 @@ function EcranChoix({ onChoix, onDeconnexion }) {
 }
 
 /* ===================== ÉCRAN COLIS (bientôt disponible) ===================== */
-function EcranColis({ onRetour }) {
-  return (
-    <div className="choix-wrap">
-      <div className="choix-header">
-        <div id="logo-badge" style={{ width: 48, height: 48, borderRadius: 13 }}></div>
-        <h1>Mira<span>Express</span></h1>
+const TAILLES_COLIS = [
+  { id: "petit", nom: "Petit", desc: "Document, téléphone (< 5 kg)", ic: "📄", base: 500 },
+  { id: "moyen", nom: "Moyen", desc: "Carton, sac (5-15 kg)", ic: "📦", base: 1000 },
+  { id: "grand", nom: "Grand", desc: "Valise, gros colis (15-30 kg)", ic: "🧳", base: 2000 },
+];
+const PRIX_KM_COLIS = 300;
+
+function EcranColis({ onRetour, session }) {
+  const [etape, setEtape] = useState(1);
+  const [mode, setMode] = useState("porte");
+  const [champActif, setChampActif] = useState("ramassage");
+  const [ramassage, setRamassage] = useState(null);
+  const [livraison, setLivraison] = useState(null);
+  const [nomRamassage, setNomRamassage] = useState(null);
+  const [nomLivraison, setNomLivraison] = useState(null);
+  const [routePoints, setRoutePoints] = useState(null);
+  const [distance, setDistance] = useState(null);
+  const [taille, setTaille] = useState("petit");
+  const [description, setDescription] = useState("");
+  const [destNom, setDestNom] = useState("");
+  const [destTel, setDestTel] = useState("");
+  const [paiement, setPaiement] = useState("airtel");
+  const [erreur, setErreur] = useState(null);
+  const [envoi, setEnvoi] = useState(false);
+  const [confirme, setConfirme] = useState(null);
+  const [colisId, setColisId] = useState(null);
+  const [colisSuivi, setColisSuivi] = useState(null);
+  const colisSuiviRef = useRef(null);
+  const [livreurAnnule, setLivreurAnnule] = useState(false);
+  const [posLivreur, setPosLivreur] = useState(null);
+  const [routeSuivi, setRouteSuivi] = useState(null);
+
+  async function nomDuLieu(lat, lng) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1&accept-language=fr`;
+      const rep = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!rep.ok) return null;
+      const data = await rep.json();
+      const a = data.address || {};
+      return a.road || a.neighbourhood || a.suburb || a.quarter || a.city_district || a.village || a.town || a.city || (data.display_name || "").split(",")[0] || null;
+    } catch (e) { return null; }
+  }
+
+  function poserPoint(lat, lng) {
+    if (champActif === "ramassage") {
+      setRamassage([lat, lng]);
+      setNomRamassage("…");
+      nomDuLieu(lat, lng).then((n) => setNomRamassage(n));
+      if (!livraison) setChampActif("livraison");
+    } else {
+      setLivraison([lat, lng]);
+      setNomLivraison("…");
+      nomDuLieu(lat, lng).then((n) => setNomLivraison(n));
+    }
+  }
+
+  useEffect(() => {
+    if (!ramassage || !livraison) { setRoutePoints(null); setDistance(null); return; }
+    let annule = false;
+    const dVol = distanceKm(ramassage, livraison) * 1.35;
+    setDistance(dVol);
+    calculerRoute(ramassage, livraison).then((res) => {
+      if (annule || !res) return;
+      setRoutePoints(res.points);
+      setDistance(res.distanceKm);
+    });
+    return () => { annule = true; };
+  }, [ramassage, livraison]);
+
+  const tailleChoisie = TAILLES_COLIS.find((t) => t.id === taille);
+  const prix = distance != null ? Math.round((tailleChoisie.base + distance * PRIX_KM_COLIS) / 50) * 50 : null;
+
+  async function commander() {
+    setErreur(null);
+    if (!ramassage || !livraison) { setErreur("Indiquez le ramassage et la livraison."); return; }
+    if (!destNom.trim() || !destTel.trim()) { setErreur("Renseignez le destinataire."); return; }
+    setEnvoi(true);
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    const { data, error } = await supabase.from("colis").insert({
+      client_id: session?.user?.id || null,
+      mode_livraison: mode,
+      ramassage_lat: ramassage[0], ramassage_lng: ramassage[1], ramassage_nom: nomRamassage,
+      livraison_lat: livraison[0], livraison_lng: livraison[1], livraison_nom: nomLivraison,
+      taille, description: description.trim(),
+      destinataire_nom: destNom.trim(), destinataire_tel: destTel.trim(),
+      distance_km: distance != null ? parseFloat(distance.toFixed(1)) : null,
+      prix_fcfa: prix, mode_paiement: paiement, statut: "recherche",
+      code_retrait: code,
+    }).select().single();
+    setEnvoi(false);
+    if (error) { setErreur(error.message); return; }
+    setColisId(data.id);
+    colisSuiviRef.current = data;
+    setColisSuivi(data);
+    setConfirme({ code, destNom: destNom.trim(), destTel: destTel.trim(), prix, ramassage: nomRamassage, livraison: nomLivraison });
+  }
+
+  // Suivi du colis en temps réel
+  useEffect(() => {
+    if (!colisId) return;
+    const canal = supabase
+      .channel("colis-" + colisId)
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "colis", filter: "id=eq." + colisId },
+        (payload) => {
+          const c = payload.new;
+          const avant = colisSuiviRef.current;
+          // Le chauffeur a annulé : il y avait un livreur, et le colis repart en recherche sans livreur
+          if (avant && avant.chauffeur_nom && c.statut === "recherche" && !c.chauffeur_nom) {
+            setLivreurAnnule(true);
+            setPosLivreur(null);
+            setRouteSuivi(null);
+            setTimeout(() => setLivreurAnnule(false), 8000);
+          }
+          colisSuiviRef.current = c;
+          setColisSuivi(c);
+          if (c.chauffeur_lat && c.chauffeur_lng) setPosLivreur([c.chauffeur_lat, c.chauffeur_lng]);
+        }
+      ).subscribe();
+    return () => supabase.removeChannel(canal);
+  }, [colisId]);
+
+  // Trajet du livreur vers le ramassage (avant récupération) ou ramassage->livraison
+  useEffect(() => {
+    if (!colisSuivi || !posLivreur) { setRouteSuivi(null); return; }
+    const ram = [colisSuivi.ramassage_lat, colisSuivi.ramassage_lng];
+    const liv = [colisSuivi.livraison_lat, colisSuivi.livraison_lng];
+    const recupere = colisSuivi.recupere;
+    const a = recupere ? ram : posLivreur;
+    const b = recupere ? liv : ram;
+    let annule = false;
+    calculerRoute(a, b).then((res) => { if (!annule && res) setRouteSuivi(res.points); });
+    return () => { annule = true; };
+  }, [colisSuivi, posLivreur]);
+
+  async function annulerColisPassager() {
+    if (!colisId) return;
+    await supabase.from("colis").update({ statut: "annulee" }).eq("id", colisId);
+    // Libérer le chauffeur s'il en avait un
+    if (colisSuivi && colisSuivi.chauffeur_nom) {
+      await supabase.from("chauffeurs").update({ en_course: false }).eq("nom", colisSuivi.chauffeur_nom);
+    }
+    onRetour();
+  }
+
+  if (confirme) {
+    const s = colisSuivi || {};
+    const statut = s.statut || "recherche";
+    const ram = s.ramassage_lat ? [s.ramassage_lat, s.ramassage_lng] : null;
+    const liv = s.livraison_lat ? [s.livraison_lat, s.livraison_lng] : null;
+    const aLivreur = !!s.chauffeur_nom;
+    const estLivre = statut === "livre";
+
+    // Étapes du suivi
+    const etapes = [
+      { cle: "recherche", label: "Recherche d'un livreur", ic: "🔍" },
+      { cle: "accepte", label: "Livreur en route vers le colis", ic: "🚗" },
+      { cle: "recupere", label: "Colis récupéré, en livraison", ic: "📦" },
+      { cle: "livre", label: "Colis livré", ic: "✅" },
+    ];
+    let etapeActuelle = 0;
+    if (estLivre) etapeActuelle = 3;
+    else if (s.recupere) etapeActuelle = 2;
+    else if (aLivreur) etapeActuelle = 1;
+    else etapeActuelle = 0;
+
+    return (
+      <div id="app">
+        <div id="header">
+          <div id="logo-badge"></div>
+          <h1>Mira<span> Express</span><small>Suivi de votre colis</small></h1>
+        </div>
+
+        <div id="map">
+          <MapContainer center={ram || NDJAMENA} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={false}>
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+            {ram && <Marker position={ram} icon={icone("#002664")} />}
+            {liv && <Marker position={liv} icon={icone("#C60C30")} />}
+            {posLivreur && <Marker position={posLivreur} icon={iconeVoiture()} />}
+            {routeSuivi && (
+              <>
+                <Polyline positions={routeSuivi} pathOptions={{ color: "#fff", weight: 9, opacity: 0.9 }} />
+                <Polyline positions={routeSuivi} pathOptions={{ color: "#16a34a", weight: 5 }} />
+              </>
+            )}
+            <AjusterVue points={[posLivreur, ram, liv]} />
+          </MapContainer>
+        </div>
+
+        <div id="panel" className="glissable" style={{ transform: "translateY(0vh)", maxHeight: "64vh", overflowY: "auto" }}>
+          <div className="panel-contenu">
+            {livreurAnnule && (
+              <div style={{ background: "#fef2f2", border: "1.5px solid #C60C30", borderRadius: "12px", padding: "12px", marginBottom: "12px", textAlign: "center", color: "#C60C30", fontWeight: 600, fontSize: "13px" }}>
+                ⚠️ Le livreur a annulé. Nous recherchons un nouveau livreur pour votre colis...
+              </div>
+            )}
+            {estLivre ? (
+              <div style={{ textAlign: "center", marginBottom: "12px" }}>
+                <div style={{ fontSize: "44px" }}>✅</div>
+                <h2 style={{ color: "#16a34a", margin: "6px 0" }}>Colis livré !</h2>
+                <p style={{ color: "#6b7280", fontSize: "13px" }}>Votre colis a bien été remis au destinataire.</p>
+              </div>
+            ) : (
+              <>
+                <h2 style={{ color: "#0d1117", marginBottom: "4px", textAlign: "center" }}>📦 Suivi du colis</h2>
+                <p style={{ color: aLivreur ? "#16a34a" : "#a16207", fontSize: "13px", fontWeight: 700, textAlign: "center", marginBottom: "14px" }}>
+                  {etapes[etapeActuelle].ic} {etapes[etapeActuelle].label}
+                </p>
+              </>
+            )}
+
+            {/* Frise des étapes */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+              {etapes.map((e, i) => (
+                <div key={e.cle} style={{ display: "flex", alignItems: "center", gap: "10px", opacity: i <= etapeActuelle ? 1 : 0.4 }}>
+                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: i <= etapeActuelle ? "#16a34a" : "#e5e7eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", flexShrink: 0 }}>
+                    {i < etapeActuelle ? "✓" : e.ic}
+                  </div>
+                  <div style={{ fontSize: "14px", fontWeight: i === etapeActuelle ? 700 : 500, color: "#0d1117" }}>{e.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Infos livreur quand il a accepté */}
+            {aLivreur && !estLivre && (
+              <div style={{ background: "#f3f4f6", borderRadius: "14px", padding: "14px", marginBottom: "14px" }}>
+                <div style={{ fontWeight: 700, color: "#0d1117", marginBottom: "6px" }}>Votre livreur</div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {s.chauffeur_plaque && <div className="plate">{s.chauffeur_plaque}</div>}
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{s.chauffeur_nom}</div>
+                  </div>
+                </div>
+                {s.chauffeur_tel && (
+                  <a href={"tel:" + s.chauffeur_tel}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", padding: "11px", marginTop: "10px", borderRadius: "11px", background: "#16a34a", color: "#fff", fontWeight: 700, textDecoration: "none", fontSize: "15px" }}>
+                    📞 Appeler le livreur
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* Code de retrait + envoi (tant que pas livré) */}
+            {!estLivre && (
+              <div style={{ background: "#002664", borderRadius: "14px", padding: "14px", marginBottom: "14px" }}>
+                <div style={{ color: "#fff", fontSize: "12px", marginBottom: "8px", textAlign: "center" }}>
+                  Code de retrait à communiquer au destinataire
+                </div>
+                <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginBottom: "12px" }}>
+                  {confirme.code.split("").map((c, i) => (
+                    <div key={i} style={{ background: "#fff", color: "#002664", fontSize: "22px", fontWeight: 800, width: "40px", height: "50px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>{c}</div>
+                  ))}
+                </div>
+                {(() => {
+                  const msg = `Bonjour ${confirme.destNom}, un colis Mira Express vous est destiné. Votre code de retrait est : ${confirme.code}. Communiquez-le au livreur à la réception du colis.`;
+                  const telPropre = (confirme.destTel || "").replace(/[^0-9]/g, "");
+                  return (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <a href={`https://wa.me/${telPropre}?text=${encodeURIComponent(msg)}`} target="_blank" rel="noopener noreferrer"
+                        style={{ flex: 1, textAlign: "center", padding: "10px", borderRadius: "10px", background: "#25D366", color: "#fff", fontWeight: 700, textDecoration: "none", fontSize: "13px" }}>
+                        💬 WhatsApp
+                      </a>
+                      <a href={`sms:${confirme.destTel}?body=${encodeURIComponent(msg)}`}
+                        style={{ flex: 1, textAlign: "center", padding: "10px", borderRadius: "10px", background: "#fff", color: "#002664", fontWeight: 700, textDecoration: "none", fontSize: "13px" }}>
+                        ✉️ SMS
+                      </a>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            <button onClick={onRetour} style={{ width: "100%", border: "none", borderRadius: "11px", background: estLivre ? "#002664" : "#e5e7eb", color: estLivre ? "#fff" : "#6b7280", fontWeight: 700, padding: "13px", cursor: "pointer", fontSize: "15px" }}>
+              {estLivre ? "Terminer" : "Retour à l'accueil"}
+            </button>
+
+            {!estLivre && (
+              <button onClick={annulerColisPassager}
+                style={{ width: "100%", border: "1.5px solid #C60C30", borderRadius: "11px", background: "#fff", color: "#C60C30", fontWeight: 700, padding: "12px", cursor: "pointer", fontSize: "14px", marginTop: "8px" }}>
+                Annuler le colis
+              </button>
+            )}
+          </div>
+        </div>
       </div>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
-        <div style={{ background: "#fff", borderRadius: "18px", padding: "34px 28px", maxWidth: "360px", width: "100%", textAlign: "center", boxShadow: "0 8px 30px rgba(0,0,0,.1)" }}>
-          <div style={{ fontSize: "56px", marginBottom: "12px" }}>📦</div>
-          <h2 style={{ color: "#002664", marginBottom: "12px" }}>Bientôt disponible !</h2>
-          <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "22px", lineHeight: 1.6 }}>
-            L'envoi de colis arrive très prochainement sur Mira Express. Vous pourrez bientôt faire livrer vos colis partout en ville, rapidement et en toute sécurité. Merci de votre patience !
-          </p>
-          <button onClick={onRetour}
-            style={{ width: "100%", border: "none", borderRadius: "11px", background: "#002664", color: "#fff", fontWeight: 700, padding: "13px", cursor: "pointer", fontSize: "15px" }}>
-            Retour
-          </button>
+    );
+  }
+
+  return (
+    <div id="app">
+      <div id="header">
+        <div id="logo-badge"></div>
+        <h1>Mira<span> Express</span><small>Envoi de colis</small></h1>
+        <button onClick={onRetour} style={{ marginLeft: "auto", background: "rgba(255,255,255,.15)", border: "none", color: "#fff", padding: "7px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}>← Accueil</button>
+      </div>
+
+      <div id="map">
+        <MapContainer center={NDJAMENA} zoom={13} style={{ height: "100%", width: "100%" }} zoomControl={false}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap" />
+          <GestionClic onClic={poserPoint} />
+          {ramassage && <Marker position={ramassage} icon={icone("#002664")} />}
+          {livraison && <Marker position={livraison} icon={icone("#C60C30")} />}
+          {ramassage && livraison && (
+            routePoints
+              ? <><Polyline positions={routePoints} pathOptions={{ color: "#fff", weight: 9, opacity: 0.9 }} /><Polyline positions={routePoints} pathOptions={{ color: "#16a34a", weight: 5 }} /></>
+              : <Polyline positions={[ramassage, livraison]} pathOptions={{ color: "#FECB00", weight: 4, dashArray: "2,8" }} />
+          )}
+          <AjusterVue points={[ramassage, livraison]} />
+        </MapContainer>
+      </div>
+
+      <div id="panel" className="glissable" style={{ transform: "translateY(0vh)", maxHeight: "62vh", overflowY: "auto" }}>
+        <div className="panel-contenu">
+          <div style={{ display: "flex", gap: "6px", marginBottom: "14px" }}>
+            {[1, 2, 3].map((n) => (
+              <div key={n} style={{ flex: 1, height: "5px", borderRadius: "3px", background: etape >= n ? "#16a34a" : "#e5e7eb" }}></div>
+            ))}
+          </div>
+
+          {etape === 1 && (
+            <>
+              <h3 style={{ color: "#0d1117", marginBottom: "10px" }}>1. Mode de livraison</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+                <div onClick={() => setMode("porte")} style={{ padding: "14px", borderRadius: "12px", cursor: "pointer", border: mode === "porte" ? "2px solid #16a34a" : "2px solid #e5e7eb", background: mode === "porte" ? "#dcfce7" : "#fff" }}>
+                  <div style={{ fontWeight: 700, color: "#0d1117" }}>🚪 Porte-à-porte</div>
+                  <div style={{ fontSize: "13px", color: "#6b7280" }}>Ramassage à l'adresse puis livraison à domicile</div>
+                </div>
+                <div onClick={() => setMode("agence")} style={{ padding: "14px", borderRadius: "12px", cursor: "pointer", border: mode === "agence" ? "2px solid #16a34a" : "2px solid #e5e7eb", background: mode === "agence" ? "#dcfce7" : "#fff" }}>
+                  <div style={{ fontWeight: 700, color: "#0d1117" }}>🏢 Dépôt en agence</div>
+                  <div style={{ fontSize: "13px", color: "#6b7280" }}>Dépôt dans une agence puis retrait par le destinataire</div>
+                </div>
+              </div>
+
+              <h3 style={{ color: "#0d1117", marginBottom: "6px" }}>Points sur la carte</h3>
+              <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                <button onClick={() => setChampActif("ramassage")} style={{ flex: 1, padding: "10px", borderRadius: "10px", border: champActif === "ramassage" ? "2px solid #002664" : "2px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 700, color: "#002664" }}>
+                  📍 Ramassage{ramassage ? " ✓" : ""}
+                </button>
+                <button onClick={() => setChampActif("livraison")} style={{ flex: 1, padding: "10px", borderRadius: "10px", border: champActif === "livraison" ? "2px solid #C60C30" : "2px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 700, color: "#C60C30" }}>
+                  🏁 Livraison{livraison ? " ✓" : ""}
+                </button>
+              </div>
+              <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "8px" }}>
+                Touchez la carte pour placer le point {champActif === "ramassage" ? "de ramassage" : "de livraison"}.
+                {nomRamassage && nomRamassage !== "…" && <div>Ramassage : {nomRamassage}</div>}
+                {nomLivraison && nomLivraison !== "…" && <div>Livraison : {nomLivraison}</div>}
+              </div>
+              <button onClick={() => { if (ramassage && livraison) setEtape(2); else setErreur("Placez les deux points."); }}
+                style={{ width: "100%", border: "none", borderRadius: "11px", background: ramassage && livraison ? "#002664" : "#9ca3af", color: "#fff", fontWeight: 700, padding: "13px", cursor: "pointer", fontSize: "15px" }}>
+                Continuer
+              </button>
+            </>
+          )}
+
+          {etape === 2 && (
+            <>
+              <h3 style={{ color: "#0d1117", marginBottom: "10px" }}>2. Taille du colis</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
+                {TAILLES_COLIS.map((t) => (
+                  <div key={t.id} onClick={() => setTaille(t.id)} style={{ padding: "12px 14px", borderRadius: "12px", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", border: taille === t.id ? "2px solid #16a34a" : "2px solid #e5e7eb", background: taille === t.id ? "#dcfce7" : "#fff" }}>
+                    <div style={{ fontSize: "26px" }}>{t.ic}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, color: "#0d1117" }}>{t.nom}</div>
+                      <div style={{ fontSize: "12px", color: "#6b7280" }}>{t.desc}</div>
+                    </div>
+                    <div style={{ fontWeight: 700, color: "#002664", fontSize: "13px" }}>dès {t.base} F</div>
+                  </div>
+                ))}
+              </div>
+              <h3 style={{ color: "#0d1117", marginBottom: "6px" }}>Description (optionnel)</h3>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex : Documents importants, fragile..."
+                style={{ width: "100%", border: "2px solid #e5e7eb", borderRadius: "10px", padding: "10px", fontSize: "14px", outline: "none", minHeight: "60px", marginBottom: "14px", fontFamily: "inherit" }} />
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={() => setEtape(1)} style={{ flex: 1, border: "2px solid #e5e7eb", borderRadius: "11px", background: "#fff", color: "#6b7280", fontWeight: 700, padding: "13px", cursor: "pointer" }}>Retour</button>
+                <button onClick={() => setEtape(3)} style={{ flex: 2, border: "none", borderRadius: "11px", background: "#002664", color: "#fff", fontWeight: 700, padding: "13px", cursor: "pointer" }}>Continuer</button>
+              </div>
+            </>
+          )}
+
+          {etape === 3 && (
+            <>
+              <h3 style={{ color: "#0d1117", marginBottom: "10px" }}>3. Destinataire</h3>
+              <input value={destNom} onChange={(e) => setDestNom(e.target.value)} placeholder="Nom du destinataire"
+                style={{ width: "100%", border: "2px solid #e5e7eb", borderRadius: "10px", padding: "12px", fontSize: "14px", outline: "none", marginBottom: "10px" }} />
+              <input value={destTel} onChange={(e) => setDestTel(e.target.value)} placeholder="Téléphone du destinataire" type="tel"
+                style={{ width: "100%", border: "2px solid #e5e7eb", borderRadius: "10px", padding: "12px", fontSize: "14px", outline: "none", marginBottom: "14px" }} />
+
+              <h3 style={{ color: "#0d1117", marginBottom: "8px" }}>Paiement</h3>
+              <div id="pay" style={{ marginBottom: "14px" }}>
+                {PAIEMENTS.map((p) => (
+                  <div key={p.id} className={"pay-opt" + (paiement === p.id ? " sel" : "")} onClick={() => setPaiement(p.id)}>
+                    <span className="ic">{p.ic}</span>{p.nom}
+                  </div>
+                ))}
+              </div>
+
+              {prix != null && (
+                <div style={{ background: "#002664", borderRadius: "14px", padding: "16px", marginBottom: "14px", textAlign: "center" }}>
+                  <div style={{ color: "#FECB00", fontSize: "28px", fontWeight: 800 }}>{prix.toLocaleString("fr-FR")} <small style={{ fontSize: "14px" }}>FCFA</small></div>
+                  <div style={{ color: "#fff", fontSize: "12px", marginTop: "4px" }}>
+                    {tailleChoisie.nom} · {distance != null ? distance.toFixed(1) : "?"} km · {mode === "porte" ? "Porte-à-porte" : "Agence"}
+                  </div>
+                </div>
+              )}
+
+              {erreur && <div style={{ color: "#C60C30", fontSize: "13px", textAlign: "center", marginBottom: "10px" }}>{erreur}</div>}
+
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={() => setEtape(2)} style={{ flex: 1, border: "2px solid #e5e7eb", borderRadius: "11px", background: "#fff", color: "#6b7280", fontWeight: 700, padding: "13px", cursor: "pointer" }}>Retour</button>
+                <button onClick={commander} disabled={envoi} style={{ flex: 2, border: "none", borderRadius: "11px", background: "#16a34a", color: "#fff", fontWeight: 700, padding: "13px", cursor: "pointer" }}>
+                  {envoi ? "Envoi..." : "Commander la livraison"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -792,7 +1197,7 @@ export default function Passager() {
   }
 
   if (service === "colis") {
-    return <div id="app"><EcranColis onRetour={() => setService(null)} /></div>;
+    return <div id="app"><EcranColis onRetour={() => setService(null)} session={session} /></div>;
   }
 
   if (service === "course" && !vueCommande) {
