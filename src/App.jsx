@@ -9,7 +9,7 @@ const NDJAMENA = [12.1348, 15.0557];
 const VITESSE_MOY = 22;
 const URL_CHAUFFEUR = "https://ndjam-ride-chauffeur.vercel.app";
 
-const CATEGORIES = [
+const CATEGORIES_DEFAUT = [
   { id: "moto",        nom: "Moto",     ic: "🛵", prixKm: 400,  minimum: 500 },
   { id: "eco",         nom: "Éco",      ic: "🚗", prixKm: 550,  minimum: 700 },
   { id: "confort",     nom: "Confort",  ic: "🚙", prixKm: 700,  minimum: 900 },
@@ -89,7 +89,15 @@ const TAGS_NOTE = [
 ];
 
 const POSITIONS = { plein: 0, moyen: 45, petit: 72 };
-const SUPPLEMENT_POINTE = 1.2;
+const SUPPLEMENT_POINTE_DEFAUT = 1.2;
+
+// Tailles de colis par défaut (valeurs de secours si la table tarifs ne charge pas)
+const TAILLES_COLIS_DEFAUT = [
+  { id: "petit", nom: "Petit", desc: "Document, téléphone (< 5 kg)", ic: "📄", base: 500 },
+  { id: "moyen", nom: "Moyen", desc: "Carton, sac (5-15 kg)", ic: "📦", base: 1000 },
+  { id: "grand", nom: "Grand", desc: "Valise, gros colis (15-30 kg)", ic: "🧳", base: 2000 },
+];
+const PRIX_KM_COLIS_DEFAUT = 300;
 
 // Lieux populaires de N'Djamena affichés sur l'accueil (comme Yango).
 // minIndicatif = temps estimé fixe (non calculé en direct).
@@ -133,10 +141,38 @@ async function calculerRoute(depart, dest) {
 
 function arrondir(p) { return Math.round(p / 50) * 50; }
 
-function prixCategorie(cat, km, pointe) {
+function prixCategorie(cat, km, pointe, supplement) {
   let p = Math.max(cat.prixKm * km, cat.minimum);
-  if (pointe) p = p * SUPPLEMENT_POINTE;
+  if (pointe) p = p * (supplement || SUPPLEMENT_POINTE_DEFAUT);
   return arrondir(p);
+}
+
+// Construit les tableaux CATEGORIES / TAILLES_COLIS depuis une ligne de la table tarifs.
+// Si t est null (table non chargée), on retombe sur les valeurs par défaut : aucune régression.
+function construireTarifs(t) {
+  if (!t) {
+    return {
+      categories: CATEGORIES_DEFAUT,
+      tailles: TAILLES_COLIS_DEFAUT,
+      supplement: SUPPLEMENT_POINTE_DEFAUT,
+      prixKmColis: PRIX_KM_COLIS_DEFAUT,
+    };
+  }
+  return {
+    categories: [
+      { id: "moto",        nom: "Moto",     ic: "🛵", prixKm: t.moto_km,        minimum: t.moto_min },
+      { id: "eco",         nom: "Éco",      ic: "🚗", prixKm: t.eco_km,         minimum: t.eco_min },
+      { id: "confort",     nom: "Confort",  ic: "🚙", prixKm: t.confort_km,     minimum: t.confort_min },
+      { id: "confortplus", nom: "Confort+", ic: "🚘", prixKm: t.confortplus_km, minimum: t.confortplus_min },
+    ],
+    tailles: [
+      { id: "petit", nom: "Petit", desc: "Document, téléphone (< 5 kg)", ic: "📄", base: t.colis_petit },
+      { id: "moyen", nom: "Moyen", desc: "Carton, sac (5-15 kg)", ic: "📦", base: t.colis_moyen },
+      { id: "grand", nom: "Grand", desc: "Valise, gros colis (15-30 kg)", ic: "🧳", base: t.colis_grand },
+    ],
+    supplement: parseFloat(t.supplement_pointe) || SUPPLEMENT_POINTE_DEFAUT,
+    prixKmColis: t.colis_km || PRIX_KM_COLIS_DEFAUT,
+  };
 }
 
 function icone(couleur) {
@@ -310,15 +346,13 @@ function EcranChoix({ onChoix, onDeconnexion }) {
   );
 }
 
-/* ===================== ÉCRAN COLIS (bientôt disponible) ===================== */
-const TAILLES_COLIS = [
-  { id: "petit", nom: "Petit", desc: "Document, téléphone (< 5 kg)", ic: "📄", base: 500 },
-  { id: "moyen", nom: "Moyen", desc: "Carton, sac (5-15 kg)", ic: "📦", base: 1000 },
-  { id: "grand", nom: "Grand", desc: "Valise, gros colis (15-30 kg)", ic: "🧳", base: 2000 },
-];
-const PRIX_KM_COLIS = 300;
+/* ===================== ÉCRAN COLIS ===================== */
+function EcranColis({ onRetour, session, tarifsLignes }) {
+  // Tarifs colis dynamiques (depuis la table tarifs), avec repli sur les défauts.
+  const T = construireTarifs(tarifsLignes);
+  const TAILLES_COLIS = T.tailles;
+  const PRIX_KM_COLIS = T.prixKmColis;
 
-function EcranColis({ onRetour, session }) {
   const [etape, setEtape] = useState(1);
   const [mode, setMode] = useState("porte");
   const [champActif, setChampActif] = useState("ramassage");
@@ -380,7 +414,7 @@ function EcranColis({ onRetour, session }) {
     return () => { annule = true; };
   }, [ramassage, livraison]);
 
-  const tailleChoisie = TAILLES_COLIS.find((t) => t.id === taille);
+  const tailleChoisie = TAILLES_COLIS.find((t) => t.id === taille) || TAILLES_COLIS[0];
   const prix = distance != null ? Math.round((tailleChoisie.base + distance * PRIX_KM_COLIS) / 50) * 50 : null;
 
   async function commander() {
@@ -863,6 +897,9 @@ function DetailLigne({ label, valeur }) {
 export default function Passager() {
   const [session, setSession] = useState(null);
   const [authPrete, setAuthPrete] = useState(false);
+  const [tarifs, setTarifs] = useState(null);
+  const T = construireTarifs(tarifs);
+  const CATEGORIES = T.categories;
   const [service, setService] = useState(null);
   const [vueCommande, setVueCommande] = useState(false);
   const [storyIndex, setStoryIndex] = useState(null);
@@ -908,6 +945,14 @@ export default function Passager() {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => setSession(sess));
     return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // Charger les tarifs (table tarifs) une fois au démarrage.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("tarifs").select("*").eq("id", 1).maybeSingle();
+      if (data) setTarifs(data);
+    })();
   }, []);
 
   async function deconnexion() {
@@ -1046,8 +1091,8 @@ export default function Passager() {
     return () => { annule = true; };
   }, [posChauffeur, depart, confirm]);
 
-  const catChoisie = CATEGORIES.find((c) => c.id === categorie);
-  const prixActuel = calcul ? prixCategorie(catChoisie, calcul.km, calcul.pointe) : null;
+  const catChoisie = CATEGORIES.find((c) => c.id === categorie) || CATEGORIES[1];
+  const prixActuel = calcul ? prixCategorie(catChoisie, calcul.km, calcul.pointe, T.supplement) : null;
 
   let minutesArrivee = null;
   if (posChauffeur && depart) {
@@ -1197,7 +1242,7 @@ export default function Passager() {
   }
 
   if (service === "colis") {
-    return <div id="app"><EcranColis onRetour={() => setService(null)} session={session} /></div>;
+    return <div id="app"><EcranColis onRetour={() => setService(null)} session={session} tarifsLignes={tarifs} /></div>;
   }
 
   if (service === "course" && !vueCommande) {
@@ -1371,7 +1416,7 @@ export default function Passager() {
                       onClick={() => setCategorie(c.id)}>
                       <div className="ic">{c.ic}</div>
                       <div className="nm">{c.nom}</div>
-                      <div className="pr">{prixCategorie(c, calcul.km, calcul.pointe).toLocaleString("fr-FR")} F</div>
+                      <div className="pr">{prixCategorie(c, calcul.km, calcul.pointe, T.supplement).toLocaleString("fr-FR")} F</div>
                     </div>
                   ))}
                 </div>
