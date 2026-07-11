@@ -33,11 +33,21 @@ body{
   padding:14px 18px;display:flex;align-items:center;gap:10px;
   box-shadow:0 2px 12px rgba(0,0,0,.25);
 }
+
+/* ===================== LOGO MIRA EXPRESS (rond + route) ===================== */
+/* Le logo est dessiné en SVG. Il s'adapte à la taille définie sur chaque écran. */
 #logo-badge{
-  width:34px;height:34px;border-radius:9px;
-  background:linear-gradient(135deg,var(--jaune) 0 33%,var(--rouge) 33% 66%,var(--bleu) 66% 100%);
-  border:2px solid var(--jaune);flex-shrink:0;
+  width:34px;height:34px;
+  border-radius:50%;
+  flex-shrink:0;
+  border:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 92 92'%3E%3Ccircle cx='46' cy='46' r='44' fill='%23002664'/%3E%3Ccircle cx='46' cy='46' r='44' fill='none' stroke='%23FECB00' stroke-width='3'/%3E%3Cpath d='M34 70 Q22 46 50 42 Q78 38 58 14' stroke='%23FECB00' stroke-width='5' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='34' cy='70' r='7' fill='%23ffffff'/%3E%3Ccircle cx='58' cy='14' r='7' fill='%23C60C30'/%3E%3C/svg%3E");
+  background-size:contain;
+  background-repeat:no-repeat;
+  background-position:center;
+  background-color:transparent;
 }
+
 #header h1{font-size:18px;font-weight:800;letter-spacing:.3px;}
 #header h1 span{color:var(--jaune);}
 #header small{display:block;font-size:10px;font-weight:400;opacity:.8;letter-spacing:.5px;}
@@ -56,6 +66,8 @@ body{
 #panel.glissable{
   display:flex;flex-direction:column;
   height:85vh;
+  max-height:88vh;
+  overflow:hidden;
   transition:transform .28s cubic-bezier(.4,0,.2,1);
   touch-action:none;
 }
@@ -63,6 +75,10 @@ body{
 #panel.glissable .panel-contenu{
   flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
 }
+#panel.glissable .grip-zone{flex-shrink:0;}
+/* tout le contenu après la poignée défile à l'intérieur du panneau */
+#panel.glissable > *:not(.grip-zone){overflow-y:auto;}
+
 #panel-grip{width:42px;height:5px;background:#d1d5db;border-radius:3px;margin:0 auto 16px;flex-shrink:0;}
 #panel.glissable #panel-grip{cursor:grab;padding:0;}
 .grip-zone{
@@ -84,6 +100,57 @@ body{
 .field .value{font-size:14px;color:var(--noir);font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;}
 .field .value.empty{color:#9ca3af;font-weight:400;}
 
+/* champ de saisie dans les "field" départ/destination */
+.field-input{
+  width:100%;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-size:15px;
+  color:#0d1117;
+  padding:2px 0;
+  font-family:inherit;
+}
+.field-input::placeholder{color:#9ca3af;}
+
+/* Bouton "Ma position" dans le champ départ */
+.btn-ma-position{
+  flex-shrink:0;
+  width:40px;height:40px;
+  border:none;
+  border-radius:50%;
+  background:#e6f0ff;
+  color:#002664;
+  font-size:18px;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+.btn-ma-position:active{background:#cfe0ff;}
+
+/* liste de suggestions */
+.suggestions{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  margin:-4px 0 10px;
+  overflow:hidden;
+  box-shadow:0 4px 14px rgba(0,0,0,.08);
+}
+.sugg-item{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:11px 14px;
+  cursor:pointer;
+  border-bottom:1px solid #f1f1f1;
+}
+.sugg-item:last-child{border-bottom:none;}
+.sugg-item:active{background:#f3f4f6;}
+.sugg-pin{font-size:16px;flex-shrink:0;}
+.sugg-principal{font-size:14px;font-weight:700;color:#0d1117;}
+.sugg-secondaire{font-size:12px;color:#6b7280;}
+.sugg-info{padding:11px 14px;font-size:13px;color:#9ca3af;}
+
 #estimate{background:linear-gradient(135deg,var(--bleu),#003a96);border-radius:15px;padding:16px;margin:14px 0 12px;color:var(--blanc);}
 #estimate.show{animation:slideUp .3s;}
 @keyframes slideUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
@@ -98,10 +165,12 @@ body{
 .class-card .nm{font-size:11px;font-weight:700;margin-top:2px;}
 .class-card .pr{font-size:10px;opacity:.85;margin-top:1px;}
 .class-card.sel .nm,.class-card.sel .pr{color:var(--bleu);}
+
 #pay{display:flex;gap:8px;margin:12px 0;}
 .pay-opt{flex:1;border:2px solid var(--gris-clair);border-radius:11px;padding:10px 6px;text-align:center;cursor:pointer;font-size:12px;font-weight:700;color:var(--gris);transition:all .15s;}
 .pay-opt.sel{border-color:var(--bleu);background:#eef3ff;color:var(--bleu);}
 .pay-opt .ic{display:block;font-size:18px;margin-bottom:3px;}
+
 #order-btn{width:100%;border:none;border-radius:14px;background:var(--rouge);color:var(--blanc);font-size:16px;font-weight:800;padding:16px;cursor:pointer;letter-spacing:.3px;transition:transform .1s,opacity .2s;}
 #order-btn:active{transform:scale(.98);}
 #order-btn:disabled{background:#d1d5db;cursor:not-allowed;}
@@ -166,67 +235,7 @@ body{
 .accueil-bascule{text-align:center;font-size:13px;color:var(--gris);margin-top:14px;}
 .accueil-bascule span{color:var(--bleu);font-weight:700;cursor:pointer;}
 
-/* ===== À COLLER À LA FIN DE TON App.css PASSAGER ===== */
-
-/* ÉCRAN DE CHOIX */
-.choix-wrap{
-  position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;
-}
-.choix-header{
-  background:#0d1117;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;
-}
-.choix-header h1{font-size:18px;font-weight:800;}
-.choix-header h1 span{color:#FECB00;}
-.choix-deco{
-  margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;
-  padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;
-}
-.choix-contenu{flex:1;padding:28px 20px;}
-.choix-titre{font-size:22px;font-weight:800;color:#0d1117;margin-bottom:4px;}
-.choix-sous{font-size:14px;color:#6b7280;margin-bottom:24px;}
-.choix-carte{
-  background:#fff;border-radius:16px;padding:20px;margin-bottom:14px;
-  display:flex;align-items:center;gap:16px;cursor:pointer;
-  box-shadow:0 2px 10px rgba(0,0,0,.06);transition:transform .12s,box-shadow .12s;
-  border:2px solid transparent;
-}
-.choix-carte:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.1);border-color:#FECB00;}
-.choix-carte:active{transform:scale(.99);}
-.choix-ic{font-size:40px;flex-shrink:0;}
-.choix-nom{font-size:17px;font-weight:800;color:#0d1117;margin-bottom:2px;}
-.choix-desc{font-size:13px;color:#6b7280;line-height:1.4;}
-.choix-fleche{margin-left:auto;font-size:28px;color:#9ca3af;font-weight:300;}
-
-/* ÉCRAN ACCUEIL COURSE (voiture Mira Express) */
-.acc-course-wrap{
-  position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;
-}
-.acc-course-contenu{flex:1;padding:20px;overflow-y:auto;}
-.acc-voiture-zone{
-  background:#fff;border-radius:18px;padding:18px;margin-bottom:18px;text-align:center;
-  box-shadow:0 2px 12px rgba(0,0,0,.06);
-}
-.acc-voiture-img{width:100%;max-width:420px;height:auto;object-fit:contain;}
-.acc-voiture-txt{font-size:15px;font-weight:700;color:#0d1117;margin-top:6px;}
-.acc-ou{
-  background:#fff;border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:14px;
-  cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:16px;
-  border:2px solid transparent;transition:border-color .12s;
-}
-.acc-ou:hover{border-color:#FECB00;}
-.acc-ou-ic{font-size:22px;}
-.acc-ou-txt{font-size:17px;font-weight:800;color:#0d1117;}
-.acc-ou-fleche{margin-left:auto;font-size:26px;color:#9ca3af;}
-.acc-commander-btn{
-  width:100%;border:none;border-radius:14px;background:#C60C30;color:#fff;
-  font-size:16px;font-weight:800;padding:16px;cursor:pointer;
-}
-.acc-commander-btn:active{transform:scale(.99);}
-
-/* ===== À COLLER À LA FIN DE TON App.css PASSAGER ===== */
-/* (Si tu avais déjà collé les blocs choix/accueil, REMPLACE-les par tout ce bloc) */
-
-/* ÉCRAN DE CHOIX */
+/* ===================== ÉCRAN DE CHOIX (Me déplacer / Colis) ===================== */
 .choix-wrap{position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;}
 .choix-header{background:#0d1117;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;}
 .choix-header h1{font-size:18px;font-weight:800;}
@@ -243,7 +252,7 @@ body{
 .choix-desc{font-size:13px;color:#6b7280;line-height:1.4;}
 .choix-fleche{margin-left:auto;font-size:28px;color:#9ca3af;font-weight:300;}
 
-/* ÉCRAN ACCUEIL COURSE */
+/* ===================== ÉCRAN ACCUEIL COURSE ===================== */
 .acc-course-wrap{position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;}
 .acc-course-contenu{flex:1;padding:20px;overflow-y:auto;}
 .acc-voiture-zone{background:#fff;border-radius:18px;padding:18px;margin-bottom:18px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.06);}
@@ -257,57 +266,52 @@ body{
 .acc-commander-btn{width:100%;border:none;border-radius:14px;background:#C60C30;color:#fff;font-size:16px;font-weight:800;padding:16px;cursor:pointer;margin-bottom:20px;}
 .acc-commander-btn:active{transform:scale(.99);}
 
-/* ===== À COLLER À LA FIN DE TON App.css PASSAGER ===== */
-/* (Si tu avais déjà collé un bloc choix/accueil/bannières, REMPLACE-le par tout ce bloc) */
+/* LISTE DE LIEUX POPULAIRES */
+.acc-lieux{
+  background:#fff;
+  border-radius:14px;
+  overflow:hidden;
+  margin-bottom:12px;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
+}
+.acc-lieu{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:13px 14px;
+  cursor:pointer;
+  border-bottom:1px solid #f1f1f1;
+}
+.acc-lieu:last-child{border-bottom:none;}
+.acc-lieu:active{background:#f3f4f6;}
+.acc-lieu-ic{
+  width:38px;height:38px;
+  border-radius:50%;
+  background:#f3f4f6;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+  flex-shrink:0;
+}
+.acc-lieu-txt{flex:1;min-width:0;}
+.acc-lieu-nom{
+  font-size:15px;font-weight:700;color:#0d1117;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.acc-lieu-quartier{font-size:12px;color:#9ca3af;}
+.acc-lieu-min{font-size:13px;color:#6b7280;font-weight:600;flex-shrink:0;}
 
-/* ÉCRAN DE CHOIX */
-.choix-wrap{position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;}
-.choix-header{background:#0d1117;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;}
-.choix-header h1{font-size:18px;font-weight:800;}
-.choix-header h1 span{color:#FECB00;}
-.choix-deco{margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;}
-.choix-contenu{flex:1;padding:28px 20px;}
-.choix-titre{font-size:22px;font-weight:800;color:#0d1117;margin-bottom:4px;}
-.choix-sous{font-size:14px;color:#6b7280;margin-bottom:24px;}
-.choix-carte{background:#fff;border-radius:16px;padding:20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06);transition:transform .12s,box-shadow .12s;border:2px solid transparent;}
-.choix-carte:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.1);border-color:#FECB00;}
-.choix-carte:active{transform:scale(.99);}
-.choix-ic{font-size:40px;flex-shrink:0;}
-.choix-nom{font-size:17px;font-weight:800;color:#0d1117;margin-bottom:2px;}
-.choix-desc{font-size:13px;color:#6b7280;line-height:1.4;}
-.choix-fleche{margin-left:auto;font-size:28px;color:#9ca3af;font-weight:300;}
-
-/* ÉCRAN ACCUEIL COURSE */
-.acc-course-wrap{position:absolute;inset:0;display:flex;flex-direction:column;background:#f3f4f6;}
-.acc-course-contenu{flex:1;padding:20px;overflow-y:auto;}
-.acc-voiture-zone{background:#fff;border-radius:18px;padding:18px;margin-bottom:18px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.06);}
-.acc-voiture-img{width:100%;max-width:420px;height:auto;object-fit:contain;}
-.acc-voiture-txt{font-size:15px;font-weight:700;color:#0d1117;margin-top:6px;}
-.acc-ou{background:#fff;border-radius:16px;padding:18px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.06);margin-bottom:16px;border:2px solid transparent;transition:border-color .12s;}
-.acc-ou:hover{border-color:#FECB00;}
-.acc-ou-ic{font-size:22px;}
-.acc-ou-txt{font-size:17px;font-weight:800;color:#0d1117;}
-.acc-ou-fleche{margin-left:auto;font-size:26px;color:#9ca3af;}
-.acc-commander-btn{width:100%;border:none;border-radius:14px;background:#C60C30;color:#fff;font-size:16px;font-weight:800;padding:16px;cursor:pointer;margin-bottom:20px;}
-.acc-commander-btn:active{transform:scale(.99);}
-
-/* BANNIÈRES : 1 grande en haut + 3 petites en grille (façon Yango) */
+/* BANNIÈRES : 1 grande en haut + 3 petites en grille */
 .acc-banniere{border-radius:14px;overflow:hidden;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.08);transition:transform .12s;}
 .acc-banniere:active{transform:scale(.98);}
 .acc-banniere img{width:100%;height:100%;object-fit:cover;display:block;}
-
-/* la grande bannière en haut, pleine largeur */
 .acc-banniere-grande{margin-bottom:12px;}
 .acc-banniere-grande img{width:100%;height:auto;}
-
-/* les petites en grille de 2 colonnes */
 .acc-bannieres-grille{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .acc-banniere-petite{aspect-ratio:16/10;}
-/* la 3e petite (seule sur la dernière ligne) prend toute la largeur */
 .acc-bannieres-grille .acc-banniere-petite:nth-child(3){grid-column:1 / -1;aspect-ratio:auto;}
 .acc-bannieres-grille .acc-banniere-petite:nth-child(3) img{height:auto;}
 
-/* MODE STORY (plein écran façon Instagram) */
+/* ===================== MODE STORY (plein écran) ===================== */
 .story-overlay{position:fixed;inset:0;z-index:2000;background:#000;display:flex;flex-direction:column;}
 .story-barres{display:flex;gap:4px;padding:10px 12px 6px;}
 .story-barre{flex:1;height:3px;background:rgba(255,255,255,.3);border-radius:3px;overflow:hidden;}
@@ -322,144 +326,3 @@ body{
 .story-titre{color:#fff;font-size:22px;font-weight:800;margin-bottom:10px;}
 .story-texte{color:rgba(255,255,255,.85);font-size:14px;line-height:1.6;}
 .story-btn{display:inline-block;margin-top:18px;background:#FECB00;color:#002664;font-weight:800;font-size:15px;padding:13px 26px;border-radius:12px;text-decoration:none;position:relative;z-index:10;}
-
-/* ===== À AJOUTER À LA FIN DE TON App.css PASSAGER (recherche d'adresse) ===== */
-
-/* champ de saisie dans les "field" départ/destination */
-.field-input{
-  width:100%;
-  border:none;
-  outline:none;
-  background:transparent;
-  font-size:15px;
-  color:#0d1117;
-  padding:2px 0;
-  font-family:inherit;
-}
-.field-input::placeholder{color:#9ca3af;}
-
-/* liste de suggestions */
-.suggestions{
-  background:#fff;
-  border:1px solid #e5e7eb;
-  border-radius:12px;
-  margin:-4px 0 10px;
-  overflow:hidden;
-  box-shadow:0 4px 14px rgba(0,0,0,.08);
-}
-.sugg-item{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:11px 14px;
-  cursor:pointer;
-  border-bottom:1px solid #f1f1f1;
-}
-.sugg-item:last-child{border-bottom:none;}
-.sugg-item:active{background:#f3f4f6;}
-.sugg-pin{font-size:16px;flex-shrink:0;}
-.sugg-principal{font-size:14px;font-weight:700;color:#0d1117;}
-.sugg-secondaire{font-size:12px;color:#6b7280;}
-.sugg-info{padding:11px 14px;font-size:13px;color:#9ca3af;}
-
-/* ===== À AJOUTER À LA FIN DE TON App.css PASSAGER (panneau glissant confirmé) ===== */
-
-/* Le panneau confirmé peut maintenant glisser comme celui de commande.
-   On limite sa hauteur et on rend son contenu défilable pour ne pas déborder. */
-#panel.glissable{
-  max-height:88vh;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-}
-#panel.glissable .grip-zone{
-  flex-shrink:0;
-}
-/* tout le contenu après la poignée défile à l'intérieur du panneau */
-#panel.glissable > *:not(.grip-zone){
-  overflow-y:auto;
-}
-
-/* ===== À AJOUTER À LA FIN DE TON App.css PASSAGER (liste de lieux populaires) ===== */
-
-.acc-lieux{
-  background:#fff;
-  border-radius:14px;
-  overflow:hidden;
-  margin-bottom:12px;
-  box-shadow:0 2px 10px rgba(0,0,0,.06);
-}
-.acc-lieu{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:13px 14px;
-  cursor:pointer;
-  border-bottom:1px solid #f1f1f1;
-}
-.acc-lieu:last-child{border-bottom:none;}
-.acc-lieu:active{background:#f3f4f6;}
-.acc-lieu-ic{
-  width:38px;height:38px;
-  border-radius:50%;
-  background:#f3f4f6;
-  display:flex;align-items:center;justify-content:center;
-  font-size:18px;
-  flex-shrink:0;
-}
-.acc-lieu-txt{flex:1;min-width:0;}
-.acc-lieu-nom{
-  font-size:15px;font-weight:700;color:#0d1117;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.acc-lieu-quartier{font-size:12px;color:#9ca3af;}
-.acc-lieu-min{font-size:13px;color:#6b7280;font-weight:600;flex-shrink:0;}
-
-/* ===== À AJOUTER À LA FIN DE TON App.css PASSAGER (liste de lieux populaires) ===== */
-
-.acc-lieux{
-  background:#fff;
-  border-radius:14px;
-  overflow:hidden;
-  margin-bottom:12px;
-  box-shadow:0 2px 10px rgba(0,0,0,.06);
-}
-.acc-lieu{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:13px 14px;
-  cursor:pointer;
-  border-bottom:1px solid #f1f1f1;
-}
-.acc-lieu:last-child{border-bottom:none;}
-.acc-lieu:active{background:#f3f4f6;}
-.acc-lieu-ic{
-  width:38px;height:38px;
-  border-radius:50%;
-  background:#f3f4f6;
-  display:flex;align-items:center;justify-content:center;
-  font-size:18px;
-  flex-shrink:0;
-}
-.acc-lieu-txt{flex:1;min-width:0;}
-.acc-lieu-nom{
-  font-size:15px;font-weight:700;color:#0d1117;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.acc-lieu-quartier{font-size:12px;color:#9ca3af;}
-.acc-lieu-min{font-size:13px;color:#6b7280;font-weight:600;flex-shrink:0;}
-
-/* Bouton "Ma position" dans le champ départ */
-.btn-ma-position{
-  flex-shrink:0;
-  width:40px;height:40px;
-  border:none;
-  border-radius:50%;
-  background:#e6f0ff;
-  color:#002664;
-  font-size:18px;
-  cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
-}
-.btn-ma-position:active{background:#cfe0ff;}
