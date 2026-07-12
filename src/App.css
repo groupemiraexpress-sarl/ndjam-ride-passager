@@ -326,3 +326,36 @@ body{
 .story-titre{color:#fff;font-size:22px;font-weight:800;margin-bottom:10px;}
 .story-texte{color:rgba(255,255,255,.85);font-size:14px;line-height:1.6;}
 .story-btn{display:inline-block;margin-top:18px;background:#FECB00;color:#002664;font-weight:800;font-size:15px;padding:13px 26px;border-radius:12px;text-decoration:none;position:relative;z-index:10;}
+
+/* ===================== MOT DE PASSE OUBLIÉ ===================== */
+
+/* Lien "Mot de passe oublié ?" sous les champs */
+.oubli-lien {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #002664;
+  cursor: pointer;
+  margin: 14px 0 0;
+}
+.oubli-lien:hover {
+  text-decoration: underline;
+}
+
+/* Titre des écrans de récupération */
+.oubli-titre {
+  font-size: 20px;
+  font-weight: 800;
+  color: #002664;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+/* Texte explicatif */
+.oubli-txt {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.6;
+  margin-bottom: 18px;
+  text-align: center;
+}
