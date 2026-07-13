@@ -158,6 +158,9 @@ function construireTarifs(t) {
       supplement: SUPPLEMENT_POINTE_DEFAUT,
       prixKmColis: PRIX_KM_COLIS_DEFAUT,
       supplementArret: SUPPLEMENT_ARRET_DEFAUT,
+      fidBronzeSeuil: 5, fidBronzeReduction: 5,
+      fidArgentSeuil: 15, fidArgentReduction: 10,
+      fidOrSeuil: 30, fidOrReduction: 15,
     };
   }
   return {
@@ -175,7 +178,27 @@ function construireTarifs(t) {
     supplement: parseFloat(t.supplement_pointe) || SUPPLEMENT_POINTE_DEFAUT,
     prixKmColis: t.colis_km || PRIX_KM_COLIS_DEFAUT,
     supplementArret: t.supplement_arret != null ? t.supplement_arret : SUPPLEMENT_ARRET_DEFAUT,
+    fidBronzeSeuil: t.fid_bronze_seuil != null ? t.fid_bronze_seuil : 5,
+    fidBronzeReduction: t.fid_bronze_reduction != null ? parseFloat(t.fid_bronze_reduction) : 5,
+    fidArgentSeuil: t.fid_argent_seuil != null ? t.fid_argent_seuil : 15,
+    fidArgentReduction: t.fid_argent_reduction != null ? parseFloat(t.fid_argent_reduction) : 10,
+    fidOrSeuil: t.fid_or_seuil != null ? t.fid_or_seuil : 30,
+    fidOrReduction: t.fid_or_reduction != null ? parseFloat(t.fid_or_reduction) : 15,
   };
+}
+
+// Détermine le palier de fidélité d'un client selon son nombre de courses terminées.
+function calculerFidelite(nb, T) {
+  if (nb >= T.fidOrSeuil) {
+    return { nom: "Or", ic: "🥇", reduction: T.fidOrReduction, prochain: null, restant: 0 };
+  }
+  if (nb >= T.fidArgentSeuil) {
+    return { nom: "Argent", ic: "🥈", reduction: T.fidArgentReduction, prochain: "Or", restant: T.fidOrSeuil - nb };
+  }
+  if (nb >= T.fidBronzeSeuil) {
+    return { nom: "Bronze", ic: "🥉", reduction: T.fidBronzeReduction, prochain: "Argent", restant: T.fidArgentSeuil - nb };
+  }
+  return { nom: "Standard", ic: "🚗", reduction: 0, prochain: "Bronze", restant: T.fidBronzeSeuil - nb };
 }
 
 // Icône d'un point d'arrêt intermédiaire : pastille jaune numérotée.
@@ -467,7 +490,7 @@ function NouveauMotDePasse({ onTermine }) {
 
 
 /* ===================== ÉCRAN DE CHOIX (Me déplacer / Colis) ===================== */
-function EcranChoix({ onChoix, onDeconnexion, courseEnCours, onReprendre }) {
+function EcranChoix({ onChoix, onDeconnexion, courseEnCours, onReprendre, fidelite, nbCourses }) {
   return (
     <div className="choix-wrap">
       <div className="choix-header">
@@ -486,6 +509,22 @@ function EcranChoix({ onChoix, onDeconnexion, courseEnCours, onReprendre }) {
               <div className="bandeau-sous">Touchez pour revenir au suivi</div>
             </div>
             <div className="bandeau-fleche">›</div>
+          </div>
+        )}
+
+        {/* Badge fidélité : palier actuel et progression vers le suivant */}
+        {fidelite && (
+          <div style={{ background: "#fff", borderRadius: "16px", padding: "14px 16px", marginBottom: "16px", boxShadow: "0 2px 8px rgba(0,0,0,.06)", display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ fontSize: "30px" }}>{fidelite.ic}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: "14px", color: "#0d1117" }}>
+                Palier {fidelite.nom}{fidelite.reduction > 0 ? ` · -${fidelite.reduction}% automatique` : ""}
+              </div>
+              <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>
+                {nbCourses} course{nbCourses > 1 ? "s" : ""} effectuée{nbCourses > 1 ? "s" : ""}
+                {fidelite.prochain ? ` · encore ${fidelite.restant} pour le palier ${fidelite.prochain}` : " · palier maximum atteint"}
+              </div>
+            </div>
           </div>
         )}
 
@@ -994,7 +1033,7 @@ function StoryViewer({ banIndex, setBanIndex, onFermer }) {
 }
 
 /* ===================== ÉCRAN ACCUEIL COURSE (voiture + bannières) ===================== */
-function AccueilCourse({ onCommander, onRetour, onOuvrirStory, onChoisirLieu }) {
+function AccueilCourse({ onCommander, onRetour, onOuvrirStory, onChoisirLieu, promotions }) {
   return (
     <div className="acc-course-wrap">
       <div className="choix-header">
@@ -1015,6 +1054,30 @@ function AccueilCourse({ onCommander, onRetour, onOuvrirStory, onChoisirLieu }) 
           <div className="acc-ou-txt">Où allons-nous ?</div>
           <div className="acc-ou-fleche">›</div>
         </div>
+
+        {/* Promotions actives publiées par le DG */}
+        {promotions && promotions.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", margin: "14px 0" }}>
+            {promotions.map((p) => (
+              <div key={p.id} onClick={onCommander} style={{
+                borderRadius: "16px", padding: "16px", cursor: "pointer", overflow: "hidden", position: "relative",
+                background: p.image_url ? `#002664 url(${p.image_url}) center/cover no-repeat` : "linear-gradient(135deg, #002664, #16a34a)",
+                minHeight: "80px", display: "flex", flexDirection: "column", justifyContent: "center",
+              }}>
+                <div style={{ position: "absolute", inset: 0, background: p.image_url ? "rgba(0,38,100,.45)" : "none" }}></div>
+                <div style={{ position: "relative", color: "#fff" }}>
+                  <div style={{ fontWeight: 800, fontSize: "15px" }}>{p.titre}</div>
+                  {p.texte && <div style={{ fontSize: "12px", opacity: 0.9, marginTop: "2px" }}>{p.texte}</div>}
+                  {p.code && (
+                    <div style={{ display: "inline-block", marginTop: "8px", background: "#FECB00", color: "#002664", fontWeight: 800, fontSize: "12px", padding: "4px 10px", borderRadius: "20px" }}>
+                      Code : {p.code}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Liste de lieux populaires (comme Yango) */}
         <div className="acc-lieux">
@@ -1043,6 +1106,7 @@ function AccueilCourse({ onCommander, onRetour, onOuvrirStory, onChoisirLieu }) 
             <div key={i + 1} className="acc-banniere acc-banniere-petite" onClick={() => onOuvrirStory(i + 1)}>
               <img src={b.vignette} alt="Bannière"
                 onError={(e) => { e.currentTarget.parentElement.style.display = "none"; }} />
+
             </div>
           ))}
         </div>
@@ -1090,6 +1154,14 @@ export default function Passager() {
   const [categorie, setCategorie] = useState("eco");
   const [paiement, setPaiement] = useState("airtel");
   const [telephoneClient, setTelephoneClient] = useState("");
+  const [promotions, setPromotions] = useState([]);
+  const [nbCoursesTerminees, setNbCoursesTerminees] = useState(0);
+  const [codePromo, setCodePromo] = useState("");
+  const [promoOuvert, setPromoOuvert] = useState(false);
+  const [bagages, setBagages] = useState(false);
+  const [promoAppliquee, setPromoAppliquee] = useState(null);
+  const [erreurPromo, setErreurPromo] = useState(null);
+  const [verifPromo, setVerifPromo] = useState(false);
   const [calcul, setCalcul] = useState(null);
   const [routePoints, setRoutePoints] = useState(null);
   const [routeChauffeur, setRouteChauffeur] = useState(null);
@@ -1172,6 +1244,7 @@ export default function Passager() {
         catNom: cat ? cat.nom : c.classe,
         code: c.code_demarrage,
         demarree: c.demarree || false,
+        bagages: c.bagages,
         chauffeur: c.chauffeur_nom
           ? { nom: c.chauffeur_nom, plate: c.chauffeur_plaque, car: c.chauffeur_vehicule, tel: c.chauffeur_tel }
           : undefined,
@@ -1193,6 +1266,26 @@ export default function Passager() {
       if (data) setTarifs(data);
     })();
   }, []);
+
+  // Charger les promotions actives (bannières + codes promo) une fois au démarrage.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("promotions").select("*").eq("actif", true);
+      if (data) setPromotions(data);
+    })();
+  }, []);
+
+  // Compter les courses terminées du client, pour son palier de fidélité.
+  useEffect(() => {
+    if (!session) return;
+    (async () => {
+      const { count } = await supabase.from("courses")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", session.user.id)
+        .eq("statut", "terminee");
+      setNbCoursesTerminees(count || 0);
+    })();
+  }, [session]);
 
   async function deconnexion() {
     await supabase.auth.signOut();
@@ -1332,6 +1425,39 @@ export default function Passager() {
 
   const catChoisie = CATEGORIES.find((c) => c.id === categorie) || CATEGORIES[1];
   const prixActuel = calcul ? prixCategorie(catChoisie, calcul.km, calcul.pointe, T.supplement) : null;
+  const fidelite = calculerFidelite(nbCoursesTerminees, T);
+
+  // Réduction en FCFA d'un code promo (% et/ou montant fixe), plafonnée au prix.
+  function montantReductionPromo(prix, promo) {
+    if (!promo || prix == null) return 0;
+    let r = 0;
+    if (promo.reduction_pourcentage) r += (prix * parseFloat(promo.reduction_pourcentage)) / 100;
+    if (promo.reduction_montant) r += parseFloat(promo.reduction_montant);
+    return Math.min(r, prix);
+  }
+  const reductionPromoFcfa = promoAppliquee ? montantReductionPromo(prixActuel, promoAppliquee) : 0;
+  const reductionFideliteFcfa = fidelite.reduction > 0 && prixActuel != null ? (prixActuel * fidelite.reduction) / 100 : 0;
+  // On ne cumule jamais : seule la réduction la plus avantageuse s'applique.
+  const meilleureReduction = Math.max(reductionPromoFcfa, reductionFideliteFcfa);
+  const reductionType = meilleureReduction <= 0 ? null : (reductionPromoFcfa >= reductionFideliteFcfa ? "promo" : "fidelite");
+  const prixFinal = prixActuel != null ? arrondir(Math.max(0, prixActuel - meilleureReduction)) : null;
+
+  // Vérifie un code promo saisi contre la table promotions (actif + dans les dates).
+  async function appliquerCodePromo() {
+    setErreurPromo(null);
+    const code = codePromo.trim().toUpperCase();
+    if (!code) { setErreurPromo("Entrez un code."); return; }
+    setVerifPromo(true);
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabase.from("promotions").select("*")
+      .eq("code", code).eq("actif", true)
+      .lte("date_debut", aujourdhui).gte("date_fin", aujourdhui)
+      .maybeSingle();
+    setVerifPromo(false);
+    if (error || !data) { setErreurPromo("Code promo invalide ou expiré."); setPromoAppliquee(null); return; }
+    setPromoAppliquee(data);
+  }
+  function retirerPromo() { setPromoAppliquee(null); setCodePromo(""); setErreurPromo(null); setPromoOuvert(false); }
 
   let minutesArrivee = null;
   if (posChauffeur && depart) {
@@ -1384,18 +1510,20 @@ export default function Passager() {
       depart_lat: depart[0], depart_lng: depart[1],
       dest_lat: dest[0], dest_lng: dest[1],
       classe: categorie,
-      prix_fcfa: prixActuel,
+      prix_fcfa: prixFinal,
       distance_km: parseFloat(calcul.km.toFixed(1)),
       duree_min: Math.round(calcul.min),
       mode_paiement: paiement, statut: "recherche",
       code_demarrage: String(Math.floor(1000 + Math.random() * 9000)),
       client_tel: telephoneClient.trim(),
+      code_promo: reductionType === "promo" ? promoAppliquee.code : null,
+      bagages,
     };
     const { data, error } = await supabase.from("courses").insert(nouvelleCourse).select().single();
     if (error) { setErreur(error.message); return; }
     setCourseId(data.id);
     setStatut("recherche");
-    setConfirm({ prix: prixActuel, payNom: PAIEMENTS.find((p) => p.id === paiement).nom, catNom: catChoisie.nom, code: data.code_demarrage });
+    setConfirm({ prix: prixFinal, payNom: PAIEMENTS.find((p) => p.id === paiement).nom, catNom: catChoisie.nom, code: data.code_demarrage, bagages: data.bagages });
     allerVers("moyen");
   }
 
@@ -1419,7 +1547,10 @@ export default function Passager() {
           if (c.statut === "annulee" && c.annule_par === "chauffeur") {
             setConfirm((prev) => ({ ...prev, annuleParChauffeur: true, motif: c.motif_annulation }));
           }
-          if (c.statut === "terminee") setConfirm((prev) => ({ ...prev, termine: true }));
+          if (c.statut === "terminee") {
+            setConfirm((prev) => ({ ...prev, termine: true }));
+            setNbCoursesTerminees((n) => n + 1);
+          }
         }
       ).subscribe();
     return () => supabase.removeChannel(canal);
@@ -1479,6 +1610,8 @@ export default function Passager() {
     setTexteDepart(""); setTexteDest(""); setSuggestions([]); setChampRecherche(null);
     setRoutePoints(null);
     setRouteChauffeur(null);
+    setCodePromo(""); setPromoAppliquee(null); setErreurPromo(null); setPromoOuvert(false);
+    setBagages(false);
     allerVers("moyen");
   }
 
@@ -1499,6 +1632,8 @@ export default function Passager() {
           onDeconnexion={deconnexion}
           courseEnCours={confirm && !confirm.termine}
           onReprendre={() => { setService("course"); setVueCommande(true); }}
+          fidelite={fidelite}
+          nbCourses={nbCoursesTerminees}
         />
       </div>
     );
@@ -1514,6 +1649,10 @@ export default function Passager() {
           onCommander={() => setVueCommande(true)}
           onRetour={() => { reinitialiser(); setService(null); }}
           onOuvrirStory={(i) => setStoryIndex(i)}
+          promotions={promotions.filter((p) => {
+            const aujourdhui = new Date().toISOString().slice(0, 10);
+            return p.date_debut <= aujourdhui && p.date_fin >= aujourdhui;
+          })}
           onChoisirLieu={(lieu) => {
             setDest([lieu.lat, lieu.lng]);
             setNomDest(lieu.nom);
@@ -1713,12 +1852,28 @@ export default function Passager() {
             {calcul && (
               <div id="estimate" className="show">
                 <div className="row">
-                  <div id="est-price">{prixActuel.toLocaleString("fr-FR")} <small>FCFA</small></div>
+                  <div id="est-price">
+                    {meilleureReduction > 0 ? (
+                      <>
+                        <span style={{ textDecoration: "line-through", opacity: 0.5, fontSize: "16px", marginRight: "8px" }}>
+                          {prixActuel.toLocaleString("fr-FR")}
+                        </span>
+                        {prixFinal.toLocaleString("fr-FR")} <small>FCFA</small>
+                      </>
+                    ) : (
+                      <>{prixActuel.toLocaleString("fr-FR")} <small>FCFA</small></>
+                    )}
+                  </div>
                   <div id="est-meta">📏 {calcul.km.toFixed(1)} km<br />⏱ ~{Math.round(calcul.min)} min</div>
                 </div>
                 {calcul.pointe && (
                   <div style={{ background: "rgba(254,203,0,.2)", color: "#FECB00", fontSize: "12px", fontWeight: 700, padding: "6px 10px", borderRadius: "8px", marginTop: "10px", textAlign: "center" }}>
                     ⚡ +20% heure de pointe
+                  </div>
+                )}
+                {reductionType === "fidelite" && (
+                  <div style={{ background: "rgba(22,163,74,.12)", color: "#166534", fontSize: "12px", fontWeight: 700, padding: "6px 10px", borderRadius: "8px", marginTop: "10px", textAlign: "center" }}>
+                    {fidelite.ic} Réduction fidélité {fidelite.nom} (-{fidelite.reduction}%) appliquée automatiquement
                   </div>
                 )}
                 <div id="classes">
@@ -1733,6 +1888,61 @@ export default function Passager() {
                 </div>
               </div>
             )}
+
+            <div onClick={() => setBagages(!bagages)}
+              style={{
+                display: "flex", alignItems: "center", gap: "10px", cursor: "pointer",
+                padding: "12px 14px", borderRadius: "12px", marginTop: "10px",
+                border: bagages ? "2px solid #002664" : "2px solid #e5e7eb",
+                background: bagages ? "#dbeafe" : "#fff",
+              }}>
+              <div style={{ fontSize: "20px" }}>🧳</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: "14px", color: "#0d1117" }}>J'ai des bagages</div>
+                <div style={{ fontSize: "12px", color: "#6b7280" }}>Le chauffeur le saura avant d'accepter</div>
+              </div>
+              <div style={{
+                width: "22px", height: "22px", borderRadius: "6px", flexShrink: 0,
+                border: bagages ? "none" : "2px solid #d1d5db",
+                background: bagages ? "#002664" : "#fff",
+                display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "14px", fontWeight: 800,
+              }}>
+                {bagages ? "✓" : ""}
+              </div>
+            </div>
+
+            {promoAppliquee ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#dcfce7", border: "2px solid #16a34a", borderRadius: "10px", padding: "10px 12px", marginTop: "10px", marginBottom: "10px" }}>
+                <span style={{ color: "#166534", fontWeight: 700, fontSize: "13px" }}>
+                  ✓ Code {promoAppliquee.code} appliqué
+                  {reductionType === "fidelite" ? " (votre palier fidélité est plus avantageux, c'est lui qui compte)" : ""}
+                </span>
+                <button onClick={retirerPromo} style={{ background: "none", border: "none", color: "#166534", fontWeight: 700, cursor: "pointer", fontSize: "13px", textDecoration: "underline" }}>Retirer</button>
+              </div>
+            ) : promoOuvert ? (
+              <div style={{ marginTop: "10px" }}>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                  <input
+                    type="text"
+                    autoFocus
+                    value={codePromo}
+                    onChange={(e) => setCodePromo(e.target.value)}
+                    placeholder="Ex : BIENVENUE20"
+                    style={{ flex: 1, border: "2px solid #e5e7eb", borderRadius: "10px", padding: "12px", fontSize: "14px", outline: "none", textTransform: "uppercase" }}
+                  />
+                  <button onClick={appliquerCodePromo} disabled={verifPromo}
+                    style={{ border: "none", borderRadius: "10px", padding: "0 18px", background: "#002664", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: "14px" }}>
+                    {verifPromo ? "..." : "Appliquer"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div onClick={() => setPromoOuvert(true)}
+                style={{ display: "inline-block", color: "#002664", fontWeight: 700, fontSize: "13px", cursor: "pointer", textDecoration: "underline", marginTop: "10px", marginBottom: "10px" }}>
+                🏷️ J'ai un code promo
+              </div>
+            )}
+            {erreurPromo && <div style={{ color: "#C60C30", fontSize: "12px", marginBottom: "10px" }}>{erreurPromo}</div>}
 
             <h3 style={{ color: "#0d1117", margin: "14px 0 6px", fontSize: "14px" }}>Votre numéro de téléphone</h3>
             <input
@@ -1923,7 +2133,7 @@ export default function Passager() {
       )}
 
       {showDetails && confirm && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "flex-end" }}
+        <div style={{ position: "absolute", inset: 0, zIndex: 1100, background: "rgba(0,0,0,.5)", display: "flex", alignItems: "flex-end" }}
           onClick={() => setShowDetails(false)}>
           <div style={{ background: "#fff", width: "100%", borderRadius: "20px 20px 0 0", padding: "20px", maxHeight: "80%", overflowY: "auto" }}
             onClick={(e) => e.stopPropagation()}>
@@ -1950,6 +2160,7 @@ export default function Passager() {
               {nomDest && nomDest !== "…" && <DetailLigne label="Destination" valeur={nomDest} />}
               {calcul && <DetailLigne label="Distance" valeur={calcul.km.toFixed(1) + " km"} />}
               {calcul && <DetailLigne label="Durée estimée" valeur={"~" + Math.round(calcul.min) + " min"} />}
+              <DetailLigne label="Bagages" valeur={confirm.bagages ? "🧳 Oui" : "Non"} />
             </div>
 
             <button onClick={() => setShowDetails(false)}
@@ -1961,7 +2172,7 @@ export default function Passager() {
       )}
 
       {chatOuvert && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "#fff", display: "flex", flexDirection: "column" }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 1000, background: "#fff", display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "14px 16px", borderBottom: "1px solid #e5e7eb", background: "#002664", color: "#fff" }}>
             <button onClick={() => setChatOuvert(false)} style={{ background: "none", border: "none", color: "#fff", fontSize: "22px", cursor: "pointer" }}>←</button>
             <div>
