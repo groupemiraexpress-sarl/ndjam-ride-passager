@@ -414,3 +414,8 @@ body{
   text-align: center; font-size: 12px; color: #6b7280;
   margin-top: 8px; font-weight: 600;
 }
+
+/* ===================== ZONES SÛRES (encoche / barre d'état) ===================== */
+#header{
+  padding-top: calc(14px + env(safe-area-inset-top));
+}
