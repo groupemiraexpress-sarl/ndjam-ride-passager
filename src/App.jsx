@@ -1089,6 +1089,7 @@ export default function Passager() {
   const timerRecherche = useRef(null);
   const [categorie, setCategorie] = useState("eco");
   const [paiement, setPaiement] = useState("airtel");
+  const [telephoneClient, setTelephoneClient] = useState("");
   const [calcul, setCalcul] = useState(null);
   const [routePoints, setRoutePoints] = useState(null);
   const [routeChauffeur, setRouteChauffeur] = useState(null);
@@ -1117,6 +1118,13 @@ export default function Passager() {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => setSession(sess));
     return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // Numéro de téléphone du passager : mémorisé sur l'appareil pour ne pas
+  // avoir à le retaper à chaque course (utilisé par le chauffeur pour appeler).
+  useEffect(() => {
+    const sauve = localStorage.getItem("mira_tel_client");
+    if (sauve) setTelephoneClient(sauve);
   }, []);
 
   // Détecte le retour depuis l'email de réinitialisation du mot de passe.
@@ -1369,6 +1377,8 @@ export default function Passager() {
   async function commander() {
     if (!calcul) return;
     setErreur(null);
+    if (!telephoneClient.trim()) { setErreur("Indiquez votre numéro de téléphone."); return; }
+    localStorage.setItem("mira_tel_client", telephoneClient.trim());
     const nouvelleCourse = {
       client_id: session?.user?.id || null,
       depart_lat: depart[0], depart_lng: depart[1],
@@ -1379,6 +1389,7 @@ export default function Passager() {
       duree_min: Math.round(calcul.min),
       mode_paiement: paiement, statut: "recherche",
       code_demarrage: String(Math.floor(1000 + Math.random() * 9000)),
+      client_tel: telephoneClient.trim(),
     };
     const { data, error } = await supabase.from("courses").insert(nouvelleCourse).select().single();
     if (error) { setErreur(error.message); return; }
@@ -1723,6 +1734,15 @@ export default function Passager() {
               </div>
             )}
 
+            <h3 style={{ color: "#0d1117", margin: "14px 0 6px", fontSize: "14px" }}>Votre numéro de téléphone</h3>
+            <input
+              type="tel"
+              value={telephoneClient}
+              onChange={(e) => setTelephoneClient(e.target.value)}
+              placeholder="Ex : 66 12 34 56"
+              style={{ width: "100%", border: "2px solid #e5e7eb", borderRadius: "10px", padding: "12px", fontSize: "14px", outline: "none", marginBottom: "10px" }}
+            />
+
             <div id="pay">
               {PAIEMENTS.map((p) => (
                 <div key={p.id} className={"pay-opt" + (paiement === p.id ? " sel" : "")} onClick={() => setPaiement(p.id)}>
@@ -1860,16 +1880,22 @@ export default function Passager() {
 
               <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                 {confirm.chauffeur.tel ? (
-                  <a href={"tel:" + confirm.chauffeur.tel}
-                    style={{ flex: 1, padding: "12px", borderRadius: "12px", background: "#16a34a", color: "#fff", fontWeight: 700, fontSize: "15px", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    📞 Appeler
-                  </a>
+                  <>
+                    <a href={"tel:" + confirm.chauffeur.tel}
+                      style={{ flex: 1, padding: "12px", borderRadius: "12px", background: "#16a34a", color: "#fff", fontWeight: 700, fontSize: "14px", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      📞 Appeler
+                    </a>
+                    <a href={`https://wa.me/${(confirm.chauffeur.tel || "").replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+                      style={{ flex: 1, padding: "12px", borderRadius: "12px", background: "#25D366", color: "#fff", fontWeight: 700, fontSize: "14px", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      💬 WhatsApp
+                    </a>
+                  </>
                 ) : null}
-                <button onClick={() => setChatOuvert(true)}
-                  style={{ flex: 1, padding: "12px", borderRadius: "12px", border: "none", cursor: "pointer", background: "#002664", color: "#fff", fontWeight: 700, fontSize: "15px" }}>
-                  💬 Discussion
-                </button>
               </div>
+              <button onClick={() => setChatOuvert(true)}
+                style={{ width: "100%", padding: "12px", marginBottom: "8px", borderRadius: "12px", border: "none", cursor: "pointer", background: "#002664", color: "#fff", fontWeight: 700, fontSize: "15px" }}>
+                💬 Discussion (messages dans l'app)
+              </button>
 
               <button onClick={() => setShowDetails(true)}
                 style={{ width: "100%", padding: "12px", marginBottom: "8px", borderRadius: "12px", border: "2px solid #002664", cursor: "pointer", background: "#fff", color: "#002664", fontWeight: 700, fontSize: "15px" }}>
