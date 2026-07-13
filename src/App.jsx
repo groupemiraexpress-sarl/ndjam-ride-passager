@@ -98,6 +98,7 @@ const TAILLES_COLIS_DEFAUT = [
   { id: "grand", nom: "Grand", desc: "Valise, gros colis (15-30 kg)", ic: "🧳", base: 2000 },
 ];
 const PRIX_KM_COLIS_DEFAUT = 300;
+const SUPPLEMENT_ARRET_DEFAUT = 200;
 
 // Lieux populaires de N'Djamena affichés sur l'accueil (comme Yango).
 // minIndicatif = temps estimé fixe (non calculé en direct).
@@ -156,6 +157,7 @@ function construireTarifs(t) {
       tailles: TAILLES_COLIS_DEFAUT,
       supplement: SUPPLEMENT_POINTE_DEFAUT,
       prixKmColis: PRIX_KM_COLIS_DEFAUT,
+      supplementArret: SUPPLEMENT_ARRET_DEFAUT,
     };
   }
   return {
@@ -172,7 +174,21 @@ function construireTarifs(t) {
     ],
     supplement: parseFloat(t.supplement_pointe) || SUPPLEMENT_POINTE_DEFAUT,
     prixKmColis: t.colis_km || PRIX_KM_COLIS_DEFAUT,
+    supplementArret: t.supplement_arret != null ? t.supplement_arret : SUPPLEMENT_ARRET_DEFAUT,
   };
+}
+
+// Icône d'un point d'arrêt intermédiaire : pastille jaune numérotée.
+function iconeArret(numero) {
+  return L.divIcon({
+    className: "",
+    html: `<svg width="30" height="38" viewBox="0 0 36 48">
+      <path d="M18 0C8 0 0 8 0 18c0 13 18 30 18 30s18-17 18-30C36 8 28 0 18 0z" fill="#FECB00"/>
+      <circle cx="18" cy="18" r="9" fill="#fff"/>
+      <text x="18" y="23" text-anchor="middle" font-size="13" font-weight="bold" fill="#002664">${numero}</text>
+    </svg>`,
+    iconSize: [30, 38], iconAnchor: [15, 38],
+  });
 }
 
 function icone(couleur) {
@@ -451,15 +467,28 @@ function NouveauMotDePasse({ onTermine }) {
 
 
 /* ===================== ÉCRAN DE CHOIX (Me déplacer / Colis) ===================== */
-function EcranChoix({ onChoix, onDeconnexion }) {
+function EcranChoix({ onChoix, onDeconnexion, courseEnCours, onReprendre }) {
   return (
     <div className="choix-wrap">
       <div className="choix-header">
-        <div id="logo-badge" style={{ width: 48, height: 48, borderRadius: 13 }}></div>
+        <div id="logo-badge" style={{ width: 48, height: 48, borderRadius: "50%" }}></div>
         <h1>Mira<span>Express</span></h1>
         <button onClick={onDeconnexion} className="choix-deco">Déconnexion</button>
       </div>
       <div className="choix-contenu">
+
+        {/* Bandeau : une course est en cours, on peut y revenir */}
+        {courseEnCours && (
+          <div className="bandeau-course" onClick={onReprendre}>
+            <div className="bandeau-ic">🚗</div>
+            <div className="bandeau-txt">
+              <div className="bandeau-titre">Course en cours</div>
+              <div className="bandeau-sous">Touchez pour revenir au suivi</div>
+            </div>
+            <div className="bandeau-fleche">›</div>
+          </div>
+        )}
+
         <h2 className="choix-titre">Que souhaitez-vous faire ?</h2>
         <p className="choix-sous">Choisissez le type de service</p>
 
@@ -1047,6 +1076,9 @@ export default function Passager() {
   const [champActif, setChampActif] = useState("depart");
   const [depart, setDepart] = useState(null);
   const [dest, setDest] = useState(null);
+  // Points d'arrêt intermédiaires (3 maximum). Chaque arrêt : { point: [lat,lng], nom: "..." }
+  const [arrets, setArrets] = useState([]);
+  const [modeArret, setModeArret] = useState(false); // true = le prochain clic carte ajoute un arrêt
   const [nomDepart, setNomDepart] = useState(null);
   const [nomDest, setNomDest] = useState(null);
   const [texteDepart, setTexteDepart] = useState("");
@@ -1094,6 +1126,57 @@ export default function Passager() {
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // REPRISE DE COURSE : au démarrage uniquement (ou après un rechargement de
+  // page), on retrouve dans la base la course encore en cours de ce client et
+  // on restaure son suivi. Le verrou "repriseFaite" garantit une seule exécution.
+  const repriseFaite = useRef(false);
+  useEffect(() => {
+    if (repriseFaite.current) return;
+    if (!session) return;
+    repriseFaite.current = true;
+
+    let annule = false;
+    (async () => {
+      const { data: courses } = await supabase
+        .from("courses").select("*")
+        .eq("client_id", session.user.id)
+        .in("statut", ["recherche", "acceptee"])
+        .order("cree_le", { ascending: false })
+        .limit(1);
+
+      if (annule || !courses || courses.length === 0) return;
+      const c = courses[0];
+
+      setCourseId(c.id);
+      setStatut(c.statut);
+      setDepart([c.depart_lat, c.depart_lng]);
+      setDest([c.dest_lat, c.dest_lng]);
+      setService("course");
+      setVueCommande(true);
+
+      const cat = CATEGORIES_DEFAUT.find((x) => x.id === c.classe);
+      const pay = PAIEMENTS.find((p) => p.id === c.mode_paiement);
+
+      setConfirm({
+        prix: c.prix_fcfa,
+        payNom: pay ? pay.nom : c.mode_paiement,
+        catNom: cat ? cat.nom : c.classe,
+        code: c.code_demarrage,
+        demarree: c.demarree || false,
+        chauffeur: c.chauffeur_nom
+          ? { nom: c.chauffeur_nom, plate: c.chauffeur_plaque, car: c.chauffeur_vehicule, tel: c.chauffeur_tel }
+          : undefined,
+      });
+
+      if (c.chauffeur_lat && c.chauffeur_lng) {
+        setPosChauffeur([c.chauffeur_lat, c.chauffeur_lng]);
+      }
+    })();
+
+    return () => { annule = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
   // Charger les tarifs (table tarifs) une fois au démarrage.
   useEffect(() => {
@@ -1287,6 +1370,7 @@ export default function Passager() {
     if (!calcul) return;
     setErreur(null);
     const nouvelleCourse = {
+      client_id: session?.user?.id || null,
       depart_lat: depart[0], depart_lng: depart[1],
       dest_lat: dest[0], dest_lng: dest[1],
       classe: categorie,
@@ -1366,6 +1450,15 @@ export default function Passager() {
     }
     reinitialiser();
   }
+  function ClicCarte({ onClic }) {
+  const refClic = useRef(onClic);
+  useEffect(() => { refClic.current = onClic; }, [onClic]);
+
+  useMapEvents({
+    click(e) { refClic.current([e.latlng.lat, e.latlng.lng]); },
+  });
+  return null;
+}
   function toggleTag(id) { setTagsChoisis((prev) => prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]); }
   function reinitialiser() {
     setConfirm(null); setCourseId(null); setPosChauffeur(null); setStatut(null);
@@ -1388,9 +1481,16 @@ export default function Passager() {
     return <div id="app"><Accueil /></div>;
   }
 
-  if (!service) {
-    return <div id="app"><EcranChoix onChoix={(s) => { setService(s); setVueCommande(false); }} onDeconnexion={deconnexion} /></div>;
-  }
+  if (!service) return (
+      <div id="app">
+        <EcranChoix
+          onChoix={(s) => { setService(s); setVueCommande(false); }}
+          onDeconnexion={deconnexion}
+          courseEnCours={confirm && !confirm.termine}
+          onReprendre={() => { setService("course"); setVueCommande(true); }}
+        />
+      </div>
+    );
 
   if (service === "colis") {
     return <div id="app"><EcranColis onRetour={() => setService(null)} session={session} tarifsLignes={tarifs} /></div>;
@@ -1423,7 +1523,17 @@ export default function Passager() {
       <div id="header">
         <div id="logo-badge"></div>
         <h1>Mira<span> Express</span><small>Votre trajet, notre priorité</small></h1>
-        <button onClick={() => { reinitialiser(); setVueCommande(false); }} style={{ marginLeft: "auto", background: "rgba(255,255,255,.15)", border: "none", color: "#fff", padding: "7px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}>
+        <button onClick={() => {
+          // Si une course est en cours, on quitte l'écran SANS l'effacer :
+          // elle reste accessible via le bandeau de l'accueil.
+          if (confirm && !confirm.termine) {
+            setVueCommande(false);
+            setService(null);
+          } else {
+            reinitialiser();
+            setVueCommande(false);
+          }
+        }} style={{ marginLeft: "auto", background: "rgba(255,255,255,.15)", border: "none", color: "#fff", padding: "7px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: 700 }}>
           ← Retour
         </button>
       </div>
@@ -1434,6 +1544,9 @@ export default function Passager() {
           <GestionClic onClic={poserPoint} />
           {depart && <Marker position={depart} icon={icone("#002664")} />}
           {dest && <Marker position={dest} icon={icone("#C60C30")} />}
+          {arrets.map((a, i) => (
+          <Marker key={i} position={a.point} icon={iconeArret(i + 1)} />
+        ))}
 
           {/* Chauffeur en route vers le client : on montre le trajet chauffeur -> départ (comme Yango) */}
           {confirm && confirm.chauffeur && !confirm.demarree && posChauffeur && depart ? (
@@ -1516,6 +1629,42 @@ export default function Passager() {
                 )}
               </div>
             )}
+
+
+            {/* ---------- POINTS D'ARRÊT (3 maximum) ---------- */}
+        {!confirm && depart && dest && (
+          <div className="arrets-zone">
+            {arrets.map((a, i) => (
+              <div key={i} className="arret-ligne">
+                <span className="arret-num">{i + 1}</span>
+                <span className="arret-nom">
+                  {a.nom || `${a.point[0].toFixed(4)}, ${a.point[1].toFixed(4)}`}
+                </span>
+                <button className="arret-suppr"
+                  onClick={() => setArrets(arrets.filter((_, j) => j !== i))}>
+                  ✕
+                </button>
+              </div>
+            ))}
+
+            {arrets.length < 3 && (
+              <button
+                className={"arret-ajout" + (modeArret ? " actif" : "")}
+                onClick={() => setModeArret(!modeArret)}>
+                {modeArret
+                  ? "👆 Touchez la carte pour placer l'arrêt"
+                  : `➕ Ajouter un arrêt (${arrets.length}/3)`}
+              </button>
+            )}
+
+            {arrets.length > 0 && (
+              <div className="arret-info">
+                {arrets.length} arrêt{arrets.length > 1 ? "s" : ""} · supplément{" "}
+                {(arrets.length * (tarifs.supplementArret || 0)).toLocaleString("fr-FR")} FCFA
+              </div>
+            )}
+          </div>
+        )}
 
             <div className={"field" + (champActif === "dest" ? " active" : "")}>
               <div className="dot dest"></div>
