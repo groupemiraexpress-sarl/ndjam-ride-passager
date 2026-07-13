@@ -490,13 +490,26 @@ function NouveauMotDePasse({ onTermine }) {
 
 
 /* ===================== ÉCRAN DE CHOIX (Me déplacer / Colis) ===================== */
-function EcranChoix({ onChoix, onDeconnexion, courseEnCours, onReprendre, fidelite, nbCourses }) {
+function EcranChoix({ onChoix, onDeconnexion, courseEnCours, onReprendre, fidelite, nbCourses, session }) {
+  const [menuOuvert, setMenuOuvert] = useState(false);
+
+  // Ferme le menu au retour (téléphone/navigateur) plutôt que de quitter l'app.
+  useEffect(() => {
+    if (!menuOuvert) return;
+    window.history.pushState({ miraEcran: true }, "");
+    function auRetour() { setMenuOuvert(false); }
+    window.addEventListener("popstate", auRetour);
+    return () => window.removeEventListener("popstate", auRetour);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menuOuvert]);
+
   return (
     <div className="choix-wrap">
       <div className="choix-header">
         <div id="logo-badge" style={{ width: 48, height: 48, borderRadius: "50%" }}></div>
         <h1>Mira<span>Express</span></h1>
-        <button onClick={onDeconnexion} className="choix-deco">Déconnexion</button>
+        <button onClick={() => setMenuOuvert(true)} className="choix-deco" aria-label="Menu"
+          style={{ fontSize: "18px", padding: "6px 14px", lineHeight: 1 }}>☰</button>
       </div>
       <div className="choix-contenu">
 
@@ -549,6 +562,23 @@ function EcranChoix({ onChoix, onDeconnexion, courseEnCours, onReprendre, fideli
           <div className="choix-fleche">›</div>
         </div>
       </div>
+
+      {menuOuvert && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 1200, background: "#fff", display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", background: "#0d1117", color: "#fff" }}>
+            <div style={{ fontWeight: 700, fontSize: "15px" }}>{session?.user?.email}</div>
+            <button onClick={() => window.history.back()} aria-label="Fermer"
+              style={{ background: "none", border: "none", color: "#fff", fontSize: "26px", cursor: "pointer", lineHeight: 1 }}>✕</button>
+          </div>
+          <div style={{ flex: 1, background: "#f3f4f6" }} />
+          <div style={{ padding: "14px 16px", background: "#fff", borderTop: "1px solid #e5e7eb" }}>
+            <button onClick={onDeconnexion}
+              style={{ width: "100%", border: "none", borderRadius: "11px", background: "#e5e7eb", color: "#6b7280", fontWeight: 700, padding: "13px", cursor: "pointer", fontSize: "15px" }}>
+              Déconnexion
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1634,6 +1664,7 @@ export default function Passager() {
           onReprendre={() => { setService("course"); setVueCommande(true); }}
           fidelite={fidelite}
           nbCourses={nbCoursesTerminees}
+          session={session}
         />
       </div>
     );
