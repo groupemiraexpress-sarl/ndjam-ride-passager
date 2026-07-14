@@ -565,7 +565,7 @@ function EcranChoix({ onChoix, onDeconnexion, courseEnCours, onReprendre, fideli
 
       {menuOuvert && (
         <div style={{ position: "absolute", inset: 0, zIndex: 1200, background: "#fff", display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", paddingTop: "max(52px, calc(12px + env(safe-area-inset-top)))", background: "#0d1117", color: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#0d1117", color: "#fff" }}>
             <div style={{ fontWeight: 700, fontSize: "13px" }}>{session?.user?.email}</div>
             <button onClick={() => window.history.back()} aria-label="Fermer"
               style={{ background: "none", border: "none", color: "#fff", fontSize: "22px", cursor: "pointer", lineHeight: 1 }}>✕</button>
@@ -2204,7 +2204,7 @@ export default function Passager() {
 
       {chatOuvert && (
         <div style={{ position: "absolute", inset: 0, zIndex: 1000, background: "#fff", display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "14px 16px", paddingTop: "max(50px, calc(14px + env(safe-area-inset-top)))", borderBottom: "1px solid #e5e7eb", background: "#002664", color: "#fff" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "14px 16px", borderBottom: "1px solid #e5e7eb", background: "#002664", color: "#fff" }}>
             <button onClick={() => setChatOuvert(false)} style={{ background: "none", border: "none", color: "#fff", fontSize: "22px", cursor: "pointer" }}>←</button>
             <div>
               <div style={{ fontWeight: 700 }}>{confirm?.chauffeur?.nom || "Chauffeur"}</div>
